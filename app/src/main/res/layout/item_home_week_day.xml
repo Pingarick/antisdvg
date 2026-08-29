@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One day column in the Home week chart. Bar height is set from code. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="match_parent"
+    android:gravity="bottom"
+    android:orientation="vertical">
+
+    <View
+        android:id="@+id/home_bar"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:background="@drawable/bg_home_bar" />
+
+    <TextView
+        android:id="@+id/home_day_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:gravity="center"
+        android:textAppearance="@style/TextAppearance.Md.Caption"
+        android:textColor="@color/text_hint"
+        tools:ignore="HardcodedText" />
+</LinearLayout>

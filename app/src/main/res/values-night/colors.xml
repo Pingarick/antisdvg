@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ============ Dark theme — Modern Editorial ============ -->
+    <color name="background">#171512</color>
+    <color name="off_white">#171512</color>
+    <color name="surface">#211D18</color>
+    <color name="on_surface">#ECE5D8</color>
+
+    <color name="text_primary">#ECE5D8</color>
+    <color name="text_secondary">#A29A8C</color>
+    <color name="text_hint">#6E6964</color>
+    <color name="text_disabled">#55504A</color>
+
+    <color name="divider">#353028</color>
+
+    <color name="accent_primary">#7FB59A</color>
+    <color name="accent_primary_dark">#9ACDB4</color>
+    <color name="accent_primary_light">#25352D</color>
+    <color name="on_accent">#10251C</color>
+
+    <!-- Reading themes (maintain in night too) -->
+    <color name="reader_light_bg">#FFFDF9</color>
+    <color name="reader_light_text">#292723</color>
+    <color name="reader_sepia_bg">#F3E9D7</color>
+    <color name="reader_sepia_text">#3A3226</color>
+    <color name="reader_dark_bg">#1A1815</color>
+    <color name="reader_dark_text">#E6DFD3</color>
+
+    <!-- Back-compat names for dark mode -->
+    <color name="cream">#171512</color>
+    <color name="cream_light">#211D18</color>
+    <color name="paper">#211D18</color>
+    <color name="brown">#7FB59A</color>
+    <color name="brown_dark">#9ACDB4</color>
+    <color name="text_dark">#ECE5D8</color>
+    <color name="gold">#C9A87C</color>
+    <color name="gold_dark">#D9BC92</color>
+    <color name="gold_pale">#4A4135</color>
+    <color name="muted_text">#A29A8C</color>
+
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+
+    <color name="success">#5CB98A</color>
+    <color name="error">#E0705F</color>
+    <color name="info">#7D9CC9</color>
+</resources>

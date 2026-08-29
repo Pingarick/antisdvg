@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ============ Modern Editorial / Premium Reading palette ============ -->
+
+    <!-- Neutral base (warm off-white / paper) -->
+    <color name="background">#F7F4EE</color>
+    <color name="off_white">#F7F4EE</color>
+    <color name="surface">#FFFDF9</color>
+    <color name="on_surface">#292723</color>
+
+    <!-- Text -->
+    <color name="text_primary">#292723</color>
+    <color name="text_secondary">#77736B</color>
+    <color name="text_hint">#9A958C</color>
+    <color name="text_disabled">#B9B4AB</color>
+
+    <!-- Divider / hairline -->
+    <color name="divider">#DED9D0</color>
+
+    <!-- Primary accent: deep warm green -->
+    <color name="accent_primary">#2F6B57</color>
+    <color name="accent_primary_dark">#245442</color>
+    <color name="accent_primary_light">#E4EFE9</color>
+    <color name="on_accent">#FFFFFF</color>
+
+    <!-- Reading themes -->
+    <color name="reader_light_bg">#FFFDF9</color>
+    <color name="reader_light_text">#292723</color>
+    <color name="reader_sepia_bg">#F3E9D7</color>
+    <color name="reader_sepia_text">#3A3226</color>
+    <color name="reader_dark_bg">#1A1815</color>
+    <color name="reader_dark_text">#E6DFD3</color>
+
+    <!-- ============ Back-compat names (legacy code/layout depend on these) ============ -->
+    <color name="cream">#F7F4EE</color>          <!-- was #F5F0EB bg -->
+    <color name="cream_light">#FAF7F2</color>     <!-- surface -->
+    <color name="paper">#FFFDF9</color>           <!-- surface -->
+    <color name="brown">#2F6B57</color>           <!-- was #4A3728 primary brown -> deep green accent -->
+    <color name="brown_dark">#245442</color>       <!-- accent_primary_dark -->
+    <color name="text_dark">#292723</color>        <!-- was #2C1810 -->
+    <color name="gold">#C9A87C</color>             <!-- muted warm accent; was #D4A373 -->
+    <color name="gold_dark">#A98A63</color>
+    <color name="gold_pale">#EADFCC</color>
+    <color name="muted_text">#77736B</color>       <!-- was #8A7263 -->
+
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+
+    <!-- Feedback -->
+    <color name="success">#3E8E63</color>
+    <color name="error">#C05348</color>
+    <color name="info">#5B7BA6</color>
+</resources>

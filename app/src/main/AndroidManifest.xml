@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Core permissions -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Camera for barcode-ISBN scanning; feature-optional so install isn't blocked on devices without a camera -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
+    <!-- So the accessibility service can see when apps open -->
+    <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />
+
+    <!-- Required to draw the full-screen "read to unlock" overlay above
+         blocked apps. Without this, TYPE_APPLICATION_OVERLAY addView() throws
+         a SecurityException and the block becomes invisible. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- Optional: usage stats to detect / feature the info screen -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- Vibration for notifications and OS checks -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <!-- StrictMode: block cleartext HTTP for DeepSeek (we use HTTPS anyway) -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:name=".AntiSdvgApp"
+        android:allowBackup="true"
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@drawable/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AntiSvdg"
+        android:usesCleartextTraffic="true"
+        tools:targetApi="24">
+
+        <!-- Main Activity -->
+        <activity
+            android:name=".ui.activities.MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.AntiSvdg">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Book detail activity -->
+        <activity
+            android:name=".ui.activities.BookDetailActivity"
+            android:exported="false"
+            android:theme="@style/Theme.AntiSvdg" />
+
+        <!-- Barcode (ISBN) scanner -->
+        <activity
+            android:name=".ui.activities.BarcodeScanActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AntiSvdg" />
+
+        <!-- Accessibility Service that blocks distracting apps -->
+        <service
+            android:name=".service.BlockerService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true"
+            android:foregroundServiceType="specialUse">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_config" />
+        </service>
+
+    </application>
+
+</manifest>

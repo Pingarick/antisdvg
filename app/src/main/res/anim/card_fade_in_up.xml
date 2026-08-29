@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Gentle fade + upward motion for the continue-reading card on Home. -->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:interpolator="@android:anim/decelerate_interpolator"
+    android:shareInterpolator="true">
+    <alpha
+        android:fromAlpha="0.0"
+        android:toAlpha="1.0"
+        android:duration="260" />
+    <translate
+        android:fromYDelta="16dp"
+        android:toYDelta="0dp"
+        android:duration="260" />
+</set>

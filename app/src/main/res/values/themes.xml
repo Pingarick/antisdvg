@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <style name="Theme.AntiSvdg" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Modern Editorial palette -->
+        <item name="colorPrimary">@color/accent_primary</item>
+        <item name="colorPrimaryVariant">@color/accent_primary_dark</item>
+        <item name="colorOnPrimary">@color/on_accent</item>
+
+        <item name="colorSecondary">@color/gold</item>
+        <item name="colorSecondaryVariant">@color/gold_dark</item>
+        <item name="colorOnSecondary">@color/text_primary</item>
+
+        <item name="colorError">@color/error</item>
+
+        <item name="android:colorBackground">@color/background</item>
+        <item name="colorOnBackground">@color/text_primary</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+
+        <item name="android:statusBarColor">@color/surface</item>
+        <item name="android:navigationBarColor">@color/surface</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:textColorHint">@color/text_secondary</item>
+
+        <!-- UI font: Manrope -->
+        <item name="android:fontFamily">@font/manrope</item>
+    </style>
+
+    <!-- ============ Typography system: Manrope (UI) ============ -->
+    <style name="TextAppearance.Md.Display" parent="TextAppearance.MaterialComponents.Headline1">
+        <item name="android:textSize">34sp</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:letterSpacing">-0.01</item>
+    </style>
+
+    <style name="TextAppearance.Md.Headline" parent="TextAppearance.MaterialComponents.Headline5">
+        <item name="android:textSize">28sp</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="TextAppearance.Md.Title" parent="TextAppearance.MaterialComponents.Headline6">
+        <item name="android:textSize">20sp</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="TextAppearance.Md.Body" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="android:textSize">16sp</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="TextAppearance.Md.Body2" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:textColor">@color/text_secondary</item>
+    </style>
+
+    <style name="TextAppearance.Md.Caption" parent="TextAppearance.MaterialComponents.Caption">
+        <item name="android:textSize">13sp</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:textColor">@color/text_secondary</item>
+    </style>
+
+    <style name="TextAppearance.Md.Label" parent="TextAppearance.MaterialComponents.Button">
+        <item name="android:textSize">12sp</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.05</item>
+        <item name="android:textColor">@color/text_secondary</item>
+    </style>
+
+    <!-- Reading font: Lora (serif) -->
+    <style name="TextAppearance.Book.Reading" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:fontFamily">@font/lora</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:lineSpacingMultiplier">1.4</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <!-- ============ Back-compat Book styles (legacy layouts depend on names) ============ -->
+    <style name="TextAppearance.Book.Headline" parent="TextAppearance.Md.Headline" />
+
+    <style name="TextAppearance.Book.Title" parent="TextAppearance.Md.Title" />
+
+    <!-- Card surface -->
+    <style name="Widget.Book.Card" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/surface</item>
+        <item name="cardCornerRadius">16dp</item>
+        <item name="cardElevation">2dp</item>
+        <item name="cardUseCompatPadding">true</item>
+    </style>
+
+    <!-- Primary CTA -->
+    <style name="Widget.Book.Button" parent="Widget.MaterialComponents.Button">
+        <item name="backgroundTint">@color/accent_primary</item>
+        <item name="android:textColor">@color/on_accent</item>
+        <item name="cornerRadius">12dp</item>
+        <item name="android:minHeight">48dp</item>
+    </style>
+
+    <!-- Tonal button (secondary action) -->
+    <style name="Widget.Book.Button.Tonal" parent="Widget.MaterialComponents.Button">
+        <item name="backgroundTint">@color/accent_primary_light</item>
+        <item name="android:textColor">@color/accent_primary_dark</item>
+        <item name="cornerRadius">12dp</item>
+    </style>
+
+    <!-- Text button -->
+    <style name="Widget.Book.Button.Text" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="android:textColor">@color/accent_primary</item>
+    </style>
+</resources>

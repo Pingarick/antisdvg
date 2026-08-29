@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A single book card in the library list (Modern Editorial style).
+-->
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="16dp"
+    android:layout_marginVertical="7dp"
+    android:clickable="true"
+    android:focusable="true"
+    app:cardBackgroundColor="@color/paper"
+    app:cardCornerRadius="18dp"
+    app:cardElevation="0dp"
+    app:strokeColor="@color/divider"
+    app:strokeWidth="1dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="14dp">
+
+        <!-- Book cover block; real cover overlays the emoji fallback -->
+        <TextView
+            android:id="@+id/book_cover"
+            android:layout_width="56dp"
+            android:layout_height="72dp"
+            android:background="@drawable/bg_book_cover"
+            android:gravity="center"
+            android:text="📖"
+            android:textSize="30sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <ImageView
+            android:id="@+id/book_cover_image"
+            android:layout_width="56dp"
+            android:layout_height="72dp"
+            android:contentDescription="@string/editor_cover_preview"
+            android:scaleType="centerCrop"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@id/book_cover"
+            app:layout_constraintStart_toStartOf="@id/book_cover"
+            app:layout_constraintTop_toTopOf="@id/book_cover" />
+
+        <TextView
+            android:id="@+id/book_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:ellipsize="end"
+            android:fontFamily="serif"
+            android:maxLines="1"
+            android:textColor="@color/text_primary"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toStartOf="@id/book_status"
+            app:layout_constraintStart_toEndOf="@id/book_cover"
+            app:layout_constraintTop_toTopOf="@id/book_cover" />
+
+        <TextView
+            android:id="@+id/book_author"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="@color/text_hint"
+            android:textSize="13sp"
+            app:layout_constraintEnd_toEndOf="@id/book_title"
+            app:layout_constraintStart_toStartOf="@id/book_title"
+            app:layout_constraintTop_toBottomOf="@id/book_title" />
+
+        <TextView
+            android:id="@+id/book_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_status_reading"
+            android:fontFamily="sans-serif-medium"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:textColor="@color/accent_primary_dark"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            tools:text="Читаю"
+            app:layout_constraintEnd_toStartOf="@id/book_edit"
+            app:layout_constraintTop_toTopOf="@id/book_cover" />
+
+        <ImageButton
+            android:id="@+id/book_edit"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/delete_book"
+            android:src="@android:drawable/ic_menu_edit"
+            android:tint="@color/text_hint"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/book_cover" />
+
+        <TextView
+            android:id="@+id/book_reading_line"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:fontFamily="sans-serif"
+            android:text="@string/library_reading_line"
+            android:textColor="@color/text_hint"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="@id/book_title"
+            app:layout_constraintTop_toBottomOf="@id/book_author" />
+
+        <TextView
+            android:id="@+id/book_progress_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:fontFamily="serif"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="@id/book_title"
+            app:layout_constraintTop_toBottomOf="@id/book_reading_line" />
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/book_progress"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:max="100"
+            android:progress="0"
+            android:progressTint="@color/accent_primary"
+            app:indicatorColor="@color/accent_primary"
+            app:layout_constraintBottom_toBottomOf="@id/book_cover"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="@id/book_title"
+            app:layout_constraintTop_toBottomOf="@id/book_progress_text"
+            app:trackColor="@color/divider"
+            app:trackCornerRadius="4dp" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>

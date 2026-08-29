@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<font-family xmlns:app="http://schemas.android.com/apk/res-auto">
+    <!-- Lora Variable (reading serif): regular / medium via fontVariationSettings -->
+    <font
+        app:font="@font/lora_var"
+        app:fontStyle="normal"
+        app:fontVariationSettings="'wght' 400" />
+    <font
+        app:font="@font/lora_var"
+        app:fontStyle="normal"
+        app:fontVariationSettings="'wght' 500" />
+    <font
+        app:font="@font/lora_var"
+        app:fontStyle="normal"
+        app:fontVariationSettings="'wght' 600" />
+    <font
+        app:font="@font/lora_var"
+        app:fontStyle="normal"
+        app:fontVariationSettings="'wght' 700" />
+</font-family>

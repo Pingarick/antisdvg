@@ -1,0 +1,43 @@
+# --- Gradle / Android build ---
+.gradle/
+build/
+app/build/
+captures/
+.cxx/
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# --- IDE ---
+.idea/
+*.iml
+.DS_Store
+
+# --- Local machine config (credentials / SDK path) ---
+local.properties
+gradle.properties.bak
+
+# --- Secrets — никогда не коммитить ---
+# DEEPSEEK_API_KEY в gradle.properties оставлен пустым: реальное значение
+# задаётся локально (~/.gradle/gradle.properties), не попадает в git.
+*.env
+
+# --- Локальные базы данных / дампы (мусор с корня проекта) ---
+*.db
+phone_db*
+awal/
+
+# --- Скриншоты / XML-дампы UI (мусор с корня проекта) ---
+*.png
+*.jpg
+*.eps
+*.webp
+
+# --- Верхнеуровневые временные файлы ---
+/*.xml
+
+# --- Kotlin/Java ---
+*.class
+kotlin/
+*.log

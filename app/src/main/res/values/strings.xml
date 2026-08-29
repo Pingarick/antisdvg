@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Anti-SDVG</string>
+
+    <!-- Navigation -->
+    <string name="nav_books">Книги</string>
+    <string name="nav_stats">Статистика</string>
+    <string name="nav_settings">Настройки</string>
+
+    <!-- Main screen -->
+    <string name="current_book">Текущая книга</string>
+    <string name="no_active_book">Нет активной книги</string>
+    <string name="add_book">Добавить книгу</string>
+    <string name="editor_new_title">Новая книга</string>
+    <string name="editor_hint">Запишите книгу, которую собираетесь читать</string>
+    <string name="editor_title">Название</string>
+    <string name="editor_title_required">Укажи название книги</string>
+    <string name="editor_author">Автор</string>
+    <string name="editor_publisher">Издательство</string>
+    <string name="editor_isbn">ISBN (необязательно)</string>
+    <string name="isbn_find">Найти</string>
+    <string name="isbn_looking_up">Ищу…</string>
+    <string name="isbn_not_found">Книга с таким ISBN не найдена</string>
+    <string name="isbn_error">Не удалось проверить ISBN. Проверьте интернет.</string>
+    <string name="editor_cover_preview">Обложка книги</string>
+    <string name="editor_yandex_hint">Ссылка из Яндекс.Книг</string>
+    <string name="yandex_find">Подтянуть</string>
+    <string name="yandex_looking_up">Подтягиваю…</string>
+    <string name="yandex_not_found">Не удалось найти книгу по ссылке</string>
+    <string name="barcode_scan">Сканировать штрихкод</string>
+    <string name="barcode_hint">Наведите камеру на штрихкод ISBN на обложке</string>
+    <string name="barcode_scanning">Сканирую…</string>
+    <string name="barcode_permission_denied">Нужно разрешение на камеру для сканирования</string>
+    <string name="barcode_scan_failed">Штрихкод не распознан. Попробуйте ещё раз.</string>
+    <string name="editor_total_pages">Страниц всего</string>
+    <string name="editor_current_page">Сейчас на стр.</string>
+    <string name="editor_format">Формат книги</string>
+    <string name="format_paper">Бумажная</string>
+    <string name="format_electronic">Электронная</string>
+    <string name="fun_time_remaining">Осталось времени для развлечений</string>
+    <string name="minutes">минут</string>
+    <string name="start_reading">Начать чтение</string>
+
+    <!-- Book detail -->
+    <string name="title">Название</string>
+    <string name="author">Автор</string>
+    <string name="publisher">Издательство</string>
+    <string name="total_pages">Всего страниц</string>
+    <string name="save">Сохранить</string>
+    <string name="cancel">Отмена</string>
+    <string name="hint_title">Например: Война и мир</string>
+    <string name="hint_author">Например: Лев Толстой</string>
+    <string name="hint_publisher">Например: Эксмо</string>
+
+    <!-- Reading -->
+    <string name="read_pages">Сколько страниц ты прочитал?</string>
+    <string name="retelling_hint">Напиши пересказ своими словами…</string>
+    <string name="check_progress">Проверить</string>
+    <string name="microphone_hint">Голосовой ввод</string>
+    <string name="verify_in_progress">ИИ проверяет твой пересказ…</string>
+    <string name="verified_success">Отлично! Ты подтвердил чтение.</string>
+    <string name="verified_fail">Пересказ слишком слабый. Перечитай страницы и попробуй снова.</string>
+    <string name="quiz_instructions">Ответь на вопросы по прочитанному:</string>
+    <string name="submit_answers">Отправить ответы</string>
+    <string name="earned_minutes">Заработано времени: %1$d</string>
+
+    <!-- Emergency access -->
+    <string name="emergency_tokens">Огоньки (экстренный доступ)</string>
+    <string name="use_token_title">Использовать огонёк?</string>
+    <string name="use_token_message">1 огонёк = 10 минут доступа без чтения. Потратить?</string>
+    <string name="use">Использовать</string>
+    <string name="no_tokens">У тебя нет огоньков. Прочитай книгу, чтобы получить новый.</string>
+
+    <!-- Achievements -->
+    <string name="first_book">Первая книга</string>
+    <string name="bookworm">Книжный червь (10 книг)</string>
+    <string name="hundred_pages">100 страниц</string>
+    <string name="thousand_pages">1000 страниц</string>
+    <string name="seven_days">7 дней чтения</string>
+    <string name="thirty_days">30 дней чтения</string>
+
+    <!-- Stats -->
+    <string name="total_books_read">Книг прочитано</string>
+    <string name="total_pages_read">Всего страниц</string>
+    <string name="total_reading_time">Минут чтения</string>
+    <string name="current_streak">Текущая серия (дней)</string>
+    <string name="highest_streak">Максимальная серия</string>
+
+    <!-- Settings -->
+    <string name="blocked_apps">Заблокированные приложения</string>
+    <string name="enable_blocker">Включить блокировку</string>
+    <string name="enable_blocker_summary">Открой системные настройки, включи сервис Anti-SDVG</string>
+    <string name="api_key">DeepSeek API ключ</string>
+    <string name="api_key_hint">Вставь ключ (sk-…)</string>
+    <string name="save_key">Сохранить ключ</string>
+    <string name="unsaved_changes">Внеси ключ в local.properties или здесь</string>
+    <string name="minutes_per_page">Минут доступа за 1 страницу</string>
+
+    <!-- Blocker overlay -->
+    <string name="blocked_message">Доступ заблокирован.\n\nУ тебя нет доступа времени. Прочитай книгу, чтобы заработать время для развлечений.</string>
+    <string name="blocked_unlock">Хочу читать книгу</string>
+    <string name="blocked_spend_token">Потратить огонёк (+10 мин)</string>
+    <string name="blocked_exit">Выйти на домашний экран</string>
+
+    <!-- Blocker foreground notification -->
+    <string name="blocker_notification_channel">Блокировка отвлекающих приложений</string>
+    <string name="blocker_notification_title">Anti-SDVG активен</string>
+    <string name="blocker_notification_text">Заблокированные приложения скрыты, пока ты не заработаешь время чтением.</string>
+
+    <!-- Reading flow -->
+    <string name="reading_title">Чтение</string>
+    <string name="reading_subtitle">Подтверди прочитанное страницы</string>
+    <string name="reading_start_page">С какой страницы начал?</string>
+    <string name="reading_end_page">До какой страницы дошёл?</string>
+    <string name="reading_verify">Подтвердить чтение</string>
+    <string name="reader_error_network">Нет соединения. Проверка требует интернет.</string>
+    <string name="reader_error_key">Не задан API-ключ DeepSeek. Добавь его в настройках или в local.properties.</string>
+    <string name="reader_error_generic">Не удалось проверить пересказ. Попробуй ещё раз.</string>
+
+    <!-- Stats screen -->
+    <string name="stats_title">Статистика</string>
+    <string name="wallet_minutes">Доступное время</string>
+    <string name="wallet_earned">Заработано минут</string>
+    <string name="wallet_used">Потрачено минут</string>
+    <string name="stats_wallet_label">Заработанное время на развлечения</string>
+    <string name="stats_wallet_hint">минут за чтение — тратьте на отдых</string>
+    <string name="stats_token_hint">осталось огоньков экстренного доступа</string>
+    <string name="stats_token_count">🕯️ %1$d</string>
+    <string name="stats_spend_token">Потратить огонёк (+10 мин)</string>
+    <string name="stats_reading_section">Чтение</string>
+    <string name="stats_period_week">Неделя</string>
+    <string name="stats_period_month">Месяц</string>
+    <string name="stats_period_all">Всё время</string>
+    <string name="stats_books_label">Книг</string>
+    <string name="stats_pages_label">Страниц</string>
+    <string name="stats_time_label">Минут</string>
+    <string name="stats_format_section">По формату</string>
+    <string name="stats_format_paper_label">Бумажные</string>
+    <string name="stats_format_electronic_label">Электронные</string>
+    <string name="stats_today_section">Сегодня</string>
+    <string name="stats_today_minutes_label">Минут прочитано</string>
+    <string name="stats_today_pages_label">Страниц прочитано</string>
+    <string name="stats_week_section">Эта неделя</string>
+    <string name="stats_week_label">Минут чтения за 7 дней</string>
+    <string name="stats_streak_label">серия дней чтения</string>
+    <string name="stats_achievements_title">Достижения</string>
+    <string name="empty_stats">Пока нет данных. Начни читать, чтобы заработать время!</string>
+
+    <!-- Settings screen -->
+    <string name="settings_title">Настройки</string>
+    <string name="section_blocker">Блокировка приложений</string>
+    <string name="section_reading_rewards">Награды за чтение</string>
+    <string name="section_api">Распознавание пересказов (ИИ)</string>
+    <string name="blocker_status_on">Блокировка включена</string>
+    <string name="blocker_status_off">Блокировка выключена</string>
+    <string name="add_blocked_app">Добавить приложение</string>
+    <string name="blocked_app_hint">Пакет приложения, например com.instagram.android</string>
+    <string name="blocked_app_add">Добавить</string>
+    <string name="blocked_list_empty">Список пуст</string>
+    <string name="delete_blocked_app">Убрать из блокировки</string>
+    <string name="minutes_per_emergency">Минут экстренного доступа</string>
+    <string name="token_count">Огоньков на старте</string>
+    <string name="api_saved_toast">Ключ сохранён</string>
+
+    <!-- Library screen -->
+    <string name="library_title">Мои книги</string>
+    <string name="library_reading_line">Сейчас читаю</string>
+    <plurals name="book_count">
+        <item quantity="one">%1$d книга</item>
+        <item quantity="few">%1$d книги</item>
+        <item quantity="many">%1$d книг</item>
+        <item quantity="other">%1$d книг</item>
+    </plurals>
+    <string name="empty_library">Пока нет книг. Добавь первую книгу!</string>
+    <string name="empty_library_sub">Начни с одной книги — читай страницы, пересказывай и зарабатывай время на отдых.</string>
+    <string name="empty_library_add">Добавить книгу</string>
+    <string name="book_read_progress">Прочитано</string>
+    <string name="of_pages">из</string>
+    <string name="book_read_progress_pages">Стр. %1$d из %2$d · %3$d%%</string>
+    <string name="finished">Прочитана</string>
+    <string name="in_progress">Читаю</string>
+    <string name="not_started">Не начата</string>
+    <string name="delete_book">Удалить книгу</string>
+    <string name="delete_book_confirm">Удалить книгу?</string>
+    <string name="start_reading_book">Читать</string>
+    <string name="continue_reading">Продолжить</string>
+
+    <!-- Emergency -->
+    <string name="token_message_earned">Огонёк использован. Добавлено %1$d минут.</string>
+    <string name="token_message_failed">Недостаточно огоньков.</string>
+
+    <!-- Misc -->
+    <string name="yes">Да</string>
+    <string name="no">Нет</string>
+    <string name="ok">ОК</string>
+    <string name="error">Ошибка</string>
+    <string name="offline_error">Нет соединения. Проверка чтения требует интернет.</string>
+    <string name="blocked_packages_hint">Добавь пакет приложения (например com.google.android.youtube)</string>
+    <string name="blocker_description">Anti-SDVG блокирует отвлекающие приложения, пока ты не заслужишь время чтением.</string>
+    <string name="blocked_notification_title">Блокировка</string>
+    <string name="blocked_notification_text">У тебя нет доступа времени. Заработай его чтением книги!</string>
+
+    <!-- Home screen -->
+    <string name="nav_home">Главная</string>
+    <string name="home_greeting_morning">Доброе утро</string>
+    <string name="home_greeting_day">Добрый день</string>
+    <string name="home_greeting_evening">Добрый вечер</string>
+    <string name="home_greeting_night">Доброй ночи</string>
+    <string name="home_reading_subtitle">Твоя ежедневная практика</string>
+    <string name="home_streak_label">серия чтения</string>
+    <string name="home_today_section">Сегодня</string>
+    <string name="home_today_minutes">Минут чтения</string>
+    <string name="home_today_pages">Страниц прочитано</string>
+    <string name="home_wallet_hint">доступных минут отдыха</string>
+    <string name="home_continue_section">Продолжить чтение</string>
+    <string name="home_continue_subtitle">У тебя есть активная книга</string>
+    <string name="home_no_active">Нет активной книги</string>
+    <string name="home_no_active_hint">Добавь книгу из библиотеки, чтобы начать практику</string>
+    <string name="home_go_library">В библиотеку</string>
+    <string name="home_progress">%1$d%% прочитано</string>
+    <string name="home_page_progress">Стр. %1$d из %2$d</string>
+    <string name="home_week_section">Последние 7 дней</string>
+    <string name="home_add_first_book">Добавить первую книгу</string>
+    <string name="home_add_book_hint">Начни практику: добавь книгу, читай страницы и зарабатывай время на отдых</string>
+</resources>
