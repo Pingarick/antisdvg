@@ -25,6 +25,23 @@ class ReadingFlowFragment : Fragment(R.layout.fragment_reading) {
         AppViewModelFactory(requireActivity().application)
     }
 
+    private var voiceHelper: com.antisdvg.util.VoiceInputHelper? = null
+    private var baseRetellingText = ""
+
+    private val audioPermissionLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            startVoiceRecording()
+        } else {
+            android.widget.Toast.makeText(
+                requireContext(),
+                "Разрешение на микрофон необходимо для голосового ввода",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -45,6 +62,8 @@ class ReadingFlowFragment : Fragment(R.layout.fragment_reading) {
         }
         binding.btnUseEmergency.setOnClickListener { onUseEmergencyClicked() }
 
+        setupVoiceInput()
+
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.state.collect { state ->
                 render(state)
@@ -52,6 +71,68 @@ class ReadingFlowFragment : Fragment(R.layout.fragment_reading) {
         }
 
         viewModel.load(bookId)
+    }
+
+    private fun setupVoiceInput() {
+        val helper = com.antisdvg.util.VoiceInputHelper(requireContext())
+        voiceHelper = helper
+
+        binding.btnVoiceInput.setOnClickListener {
+            if (helper.isListening) {
+                helper.stop()
+            } else {
+                val hasPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                    requireContext(),
+                    android.Manifest.permission.RECORD_AUDIO
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+                if (hasPermission) {
+                    startVoiceRecording()
+                } else {
+                    audioPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+                }
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            helper.onState.collect { state ->
+                when (state) {
+                    is com.antisdvg.util.VoiceInputHelper.State.Listening,
+                    is com.antisdvg.util.VoiceInputHelper.State.Ready -> {
+                        binding.btnVoiceInput.text = "⏹ Остановить запись"
+                    }
+                    is com.antisdvg.util.VoiceInputHelper.State.Idle -> {
+                        binding.btnVoiceInput.text = "🎙️ Надиктовать пересказ голосом"
+                    }
+                    is com.antisdvg.util.VoiceInputHelper.State.Error -> {
+                        binding.btnVoiceInput.text = "🎙️ Надиктовать пересказ голосом"
+                        android.widget.Toast.makeText(requireContext(), state.message, android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            helper.onPartialResult.collect { partial ->
+                val combined = if (baseRetellingText.isBlank()) partial else "$baseRetellingText $partial"
+                binding.inputRetellingEdit.setText(combined)
+                binding.inputRetellingEdit.setSelection(combined.length)
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            helper.onResult.collect { final ->
+                val combined = if (baseRetellingText.isBlank()) final else "$baseRetellingText $final"
+                binding.inputRetellingEdit.setText(combined)
+                binding.inputRetellingEdit.setSelection(combined.length)
+                baseRetellingText = combined
+            }
+        }
+    }
+
+    private fun startVoiceRecording() {
+        baseRetellingText = binding.inputRetellingEdit.text?.toString()?.trim().orEmpty()
+        voiceHelper?.start()
     }
 
     private fun render(state: ReadingUiState) {
@@ -148,6 +229,8 @@ class ReadingFlowFragment : Fragment(R.layout.fragment_reading) {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        voiceHelper?.destroy()
+        voiceHelper = null
         _binding = null
     }
 }

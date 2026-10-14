@@ -73,10 +73,10 @@ object YandexBooksParser {
      * classes, so grabbing the first genuine `books-covers` src works.
      */
     private fun findCover(html: String): String {
-        val imgRegex = Regex("<img[^>]*class=\"Cover_image__[^\"]*\"[^>]*src=\"(https://[^\"]*books-covers/[^\"]*?)\"")
+        // Look for books-covers CDN image in img tags (independent of generated CSS classes).
+        val imgRegex = Regex("<img[^>]*src=\"(https://[^\"]*(?:books-covers|get-books-covers)/[^\"]*?)\"", RegexOption.IGNORE_CASE)
         val match = imgRegex.find(html)
         val src = match?.groupValues?.get(1) ?: ""
-        // Drop the signed image_hash query — the plain CDN path serves 200.
         return src.substringBefore("?image_hash=")
     }
 

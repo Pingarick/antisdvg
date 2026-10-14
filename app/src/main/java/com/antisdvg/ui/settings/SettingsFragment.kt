@@ -89,11 +89,73 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
             if (pkg.isNotEmpty()) {
                 viewModel.addBlockedApp(packageName = pkg, label = pkg)
                 binding.inputBlockedAppEdit.setText("")
+                BlockerService.broadcastRefresh(requireContext())
             }
+        }
+
+        binding.btnPickApp.setOnClickListener {
+            showInstalledAppPicker()
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.state.collect { state -> render(state) }
+        }
+    }
+
+    private fun showInstalledAppPicker() {
+        val context = requireContext()
+        viewLifecycleOwner.lifecycleScope.launch {
+            val pm = context.packageManager
+            val currentBlocked = viewModel.state.value.blockedApps.map { it.packageName }.toSet()
+            val ownPackage = context.packageName
+
+            val items = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val intent = Intent(Intent.ACTION_MAIN, null).apply {
+                    addCategory(Intent.CATEGORY_LAUNCHER)
+                }
+                val resolveInfos = pm.queryIntentActivities(intent, 0)
+                resolveInfos.mapNotNull { ri ->
+                    val pkg = ri.activityInfo.packageName
+                    if (pkg == ownPackage || pkg in currentBlocked) return@mapNotNull null
+                    val label = ri.loadLabel(pm).toString()
+                    val icon = ri.loadIcon(pm)
+                    AppItem(label = label, packageName = pkg, icon = icon)
+                }.sortedBy { it.label.lowercase() }
+            }
+
+            if (!isAdded) return@launch
+            if (items.isEmpty()) {
+                Toast.makeText(context, "Все найденные приложения уже в списке", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
+            val adapter = object : android.widget.ArrayAdapter<AppItem>(
+                context,
+                android.R.layout.activity_list_item,
+                android.R.id.text1,
+                items
+            ) {
+                override fun getView(position: Int, convertView: android.view.View?, parent: android.view.ViewGroup): android.view.View {
+                    val view = super.getView(position, convertView, parent)
+                    val item = getItem(position) ?: return view
+                    val text = view.findViewById<android.widget.TextView>(android.R.id.text1)
+                    val icon = view.findViewById<android.widget.ImageView>(android.R.id.icon)
+                    text.text = "${item.label}\n(${item.packageName})"
+                    text.maxLines = 2
+                    icon.setImageDrawable(item.icon)
+                    return view
+                }
+            }
+
+            androidx.appcompat.app.AlertDialog.Builder(context)
+                .setTitle(R.string.pick_app_title)
+                .setAdapter(adapter) { _, which ->
+                    val chosen = items[which]
+                    viewModel.addBlockedApp(packageName = chosen.packageName, label = chosen.label)
+                    BlockerService.broadcastRefresh(context)
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
         }
     }
 
@@ -116,9 +178,15 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         binding.btnOpenOverlay.visibility =
             if (canDrawOverlays(requireContext())) View.GONE else View.VISIBLE
 
-        binding.inputMinutesPerPageEdit.setText(settings.minutesPerPage.toString())
-        binding.inputEmergencyMinutesEdit.setText(settings.emergencyMinutes.toString())
-        binding.inputApiKeyEdit.setText(settings.apiKey)
+        if (!binding.inputMinutesPerPageEdit.hasFocus()) {
+            binding.inputMinutesPerPageEdit.setText(settings.minutesPerPage.toString())
+        }
+        if (!binding.inputEmergencyMinutesEdit.hasFocus()) {
+            binding.inputEmergencyMinutesEdit.setText(settings.emergencyMinutes.toString())
+        }
+        if (!binding.inputApiKeyEdit.hasFocus()) {
+            binding.inputApiKeyEdit.setText(settings.apiKey)
+        }
 
         val empty = state.blockedApps.isEmpty()
         binding.blockedListEmpty.visibility =
@@ -130,4 +198,10 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         super.onDestroyView()
         _binding = null
     }
+
+    private data class AppItem(
+        val label: String,
+        val packageName: String,
+        val icon: android.graphics.drawable.Drawable
+    )
 }

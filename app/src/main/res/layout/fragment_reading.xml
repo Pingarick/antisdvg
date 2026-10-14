@@ -200,11 +200,22 @@
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_voice_input"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="🎙️ Надиктовать пересказ голосом"
+                    android:textColor="@color/brown"
+                    app:strokeColor="@color/gold_dark"
+                    android:textSize="14sp" />
+
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_check_progress"
                     style="@style/Widget.Book.Button"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
+                    android:layout_marginTop="8dp"
                     android:text="@string/reading_verify"
                     android:textSize="15sp" />
             </LinearLayout>

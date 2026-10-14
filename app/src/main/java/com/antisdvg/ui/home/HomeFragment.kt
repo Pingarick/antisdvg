@@ -40,6 +40,16 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             findNavController().navigate(R.id.nav_library)
         }
 
+        binding.homeContinueCard.setOnClickListener {
+            val book = viewModel.state.value.activeBook
+            if (book != null) {
+                findNavController().navigate(
+                    R.id.nav_reading,
+                    Bundle().apply { putLong("bookId", book.id) }
+                )
+            }
+        }
+
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.state.collectLatest { state ->
                 renderStats(state)

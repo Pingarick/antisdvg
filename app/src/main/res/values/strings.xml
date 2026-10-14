@@ -156,6 +156,9 @@
     <string name="add_blocked_app">Добавить приложение</string>
     <string name="blocked_app_hint">Пакет приложения, например com.instagram.android</string>
     <string name="blocked_app_add">Добавить</string>
+    <string name="pick_installed_app">Выбрать из списка приложений</string>
+    <string name="pick_app_title">Блокировать приложение</string>
+    <string name="loading_apps">Загрузка приложений…</string>
     <string name="blocked_list_empty">Список пуст</string>
     <string name="delete_blocked_app">Убрать из блокировки</string>
     <string name="minutes_per_emergency">Минут экстренного доступа</string>

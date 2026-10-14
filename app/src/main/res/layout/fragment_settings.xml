@@ -293,6 +293,15 @@
                         android:text="@string/blocked_app_add" />
                 </LinearLayout>
 
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_pick_app"
+                    style="@style/Widget.Book.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/pick_installed_app"
+                    android:textSize="14sp" />
+
                 <TextView
                     android:id="@+id/blocked_list_empty"
                     android:layout_width="wrap_content"

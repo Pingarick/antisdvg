@@ -36,14 +36,20 @@ class VoiceInputHelper(
         data class Error(val message: String) : State
     }
 
+    val isListening: Boolean get() = listening
+
     private val stateChannel = Channel<State>(Channel.BUFFERED)
     private val resultChannel = Channel<String>(Channel.BUFFERED)
+    private val partialResultChannel = Channel<String>(Channel.BUFFERED)
 
     /** Emits recognizer lifecycle changes (Idle/Ready/Listening/Error). */
     val onState: Flow<State> = stateChannel.receiveAsFlow()
 
     /** Emits the final transcribed text once decoding finishes. */
     val onResult: Flow<String> = resultChannel.receiveAsFlow()
+
+    /** Emits partial (in-progress) transcribed text during speech. */
+    val onPartialResult: Flow<String> = partialResultChannel.receiveAsFlow()
 
     private val listener = object : RecognitionListener {
         override fun onReadyForSpeech(params: Bundle?) {
@@ -79,7 +85,13 @@ class VoiceInputHelper(
             stateChannel.trySend(State.Idle)
         }
 
-        override fun onPartialResults(partialResults: Bundle?) = Unit
+        override fun onPartialResults(partialResults: Bundle?) {
+            val matches = partialResults
+                ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                .orEmpty()
+            val text = matches.firstOrNull().orEmpty()
+            if (text.isNotBlank()) partialResultChannel.trySend(text)
+        }
 
         override fun onEvent(eventType: Int, params: Bundle?) = Unit
     }
@@ -126,6 +138,7 @@ class VoiceInputHelper(
         recognizer = null
         stateChannel.close()
         resultChannel.close()
+        partialResultChannel.close()
     }
 
     private fun speechAvailable(): Boolean =

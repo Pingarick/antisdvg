@@ -38,15 +38,23 @@ class AIRepository {
         val prompt = buildSystemPrompt(book, startPage, endPage)
         val userMessage = buildUserMessage(userText, questions)
 
-        val response = DeepSeekClient.api.chat(
-            authorization = "Bearer ${apiKey.ifBlank { BuildConfig.DEEPSEEK_API_KEY }}",
-            request = ChatRequest(
-                messages = listOf(
-                    ChatMessage("system", prompt),
-                    ChatMessage("user", userMessage)
+        val response = try {
+            DeepSeekClient.api.chat(
+                authorization = "Bearer ${apiKey.ifBlank { BuildConfig.DEEPSEEK_API_KEY }}",
+                request = ChatRequest(
+                    messages = listOf(
+                        ChatMessage("system", prompt),
+                        ChatMessage("user", userMessage)
+                    )
                 )
             )
-        )
+        } catch (e: Exception) {
+            return VerifyResult(
+                ok = false,
+                taskType = VerifyResult.TASK_SCORE,
+                feedback = "Ошибка сети: ${e.message ?: "не удалось связаться с сервером"}. Проверьте подключение."
+            )
+        }
 
         if (!response.isSuccessful) {
             return VerifyResult(
@@ -95,24 +103,25 @@ class AIRepository {
         return "Пересказ пользователя:\n$userText"
     }
 
-    private fun cleanJson(raw: String): String {
+    internal fun cleanJson(raw: String): String {
         val trimmed = raw.trim()
-        return when {
-            trimmed.startsWith("```") -> {
-                val start = trimmed.indexOf('\n')
-                val end = trimmed.lastIndexOf("```")
-                if (start >= 0 && end > start) trimmed.substring(start + 1, end).trim()
-                else trimmed
-            }
-            else -> trimmed
+        val codeBlockMatch = Regex("```(?:json)?\\s*([\\s\\S]*?)\\s*```").find(trimmed)
+        if (codeBlockMatch != null) {
+            return codeBlockMatch.groupValues[1].trim()
         }
+        val firstBrace = trimmed.indexOf('{')
+        val lastBrace = trimmed.lastIndexOf('}')
+        if (firstBrace in 0 until lastBrace) {
+            return trimmed.substring(firstBrace, lastBrace + 1).trim()
+        }
+        return trimmed
     }
 
     /**
      * Defensive JSON parser: falls back to a manual scan of the four fields in
      * case the model wraps values differently or includes stray prose.
      */
-    private fun parse(raw: String): VerifyResult {
+    internal fun parse(raw: String): VerifyResult {
         return try {
             val obj = JSONObject(raw)
             val taskType = obj.optString("taskType", VerifyResult.TASK_SCORE).lowercase()
@@ -132,15 +141,22 @@ class AIRepository {
         }
     }
 
-    private fun normalizeTaskType(raw: String): String = when {
+    internal fun normalizeTaskType(raw: String): String = when {
         raw.contains("quiz") -> VerifyResult.TASK_QUIZ
         raw.contains("retell") -> VerifyResult.TASK_RETELLING
         else -> VerifyResult.TASK_SCORE
     }
 
-    private fun fallbackParse(raw: String): VerifyResult {
+    internal fun fallbackParse(raw: String): VerifyResult {
         val lower = raw.lowercase()
-        val passed = !lower.contains("\"passed\":false") && !lower.contains("нет, не прочитал")
+        val hasPassedFalse = Regex("\"passed\"\\s*:\\s*false").containsMatchIn(lower)
+        val hasPassedTrue = Regex("\"passed\"\\s*:\\s*true").containsMatchIn(lower)
+        val passed = when {
+            hasPassedFalse -> false
+            hasPassedTrue -> true
+            lower.contains("нет, не прочитал") || lower.contains("не подтверждено") -> false
+            else -> false
+        }
         val taskType = normalizeTaskType(lower)
         val feedback = extractQuoted(raw, "feedback")
             ?: if (passed) "Чтение подтверждено." else "Чтение не подтверждено."

@@ -254,7 +254,7 @@ class BlockerService : AccessibilityService() {
     /** Pushes the spent-time state from the fast prefs mirror into Room. */
     private fun flushSpentMinutes(batch: Int) {
         if (batch <= 0) return
-        CoroutineScope(Dispatchers.IO).launch {
+        serviceScope.launch(Dispatchers.IO) {
             try {
                 DataRepository(AppDatabase.getInstance(this@BlockerService).appDao(), prefs)
                     .syncRemainingFromPrefs()
@@ -284,7 +284,7 @@ class BlockerService : AccessibilityService() {
     // ---- Refresh blocked packages (called on broadcast or service connect) ----
 
     private fun refreshBlockedPackages() {
-        CoroutineScope(Dispatchers.IO).launch {
+        serviceScope.launch(Dispatchers.IO) {
             val settings = AppDatabase.getInstance(this@BlockerService)
                 .appDao().getSettings()
             val apps = AppDatabase.getInstance(this@BlockerService)
@@ -324,9 +324,10 @@ class BlockerService : AccessibilityService() {
         }
 
         // Spend an emergency token for a +10 min grace period instead of reading.
-        // Reads/writes Room on IO; never block the accessibility thread.
+        // Reads/writes Room on IO; remove overlay immediately on the Main thread.
         view.findViewById<Button>(R.id.block_spend_token).setOnClickListener {
-            CoroutineScope(Dispatchers.IO).launch {
+            removeBlockView()
+            serviceScope.launch(Dispatchers.IO) {
                 val dao = AppDatabase.getInstance(this@BlockerService).appDao()
                 val repo = DataRepository(dao, prefs)
                 val spent = repo.spendEmergencyToken()
@@ -334,9 +335,7 @@ class BlockerService : AccessibilityService() {
                 // Refresh the in-memory blocked-apps/settings cache so the
                 // fast path on the accessibility thread sees the new minutes.
                 refreshFromDatabase()
-                removeBlockView()
             }
-            removeBlockView()
         }
 
         // Leave the overlay and return to the launcher without reading or

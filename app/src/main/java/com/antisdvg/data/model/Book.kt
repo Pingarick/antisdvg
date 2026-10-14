@@ -43,7 +43,7 @@ object BookFormat {
 
     /** Multipliers applied to earned minutes per page. */
     fun factor(format: String): Double = when (format) {
-        ELECTRONIC -> 0.5
+        ELECTRONIC -> 0.6
         else -> 1.0
     }
 }

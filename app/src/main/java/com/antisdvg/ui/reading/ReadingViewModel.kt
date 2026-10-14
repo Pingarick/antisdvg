@@ -81,7 +81,8 @@ class ReadingViewModel(
             return
         }
 
-        if (apiKey.isBlank()) {
+        val effectiveKey = apiKey.ifBlank { com.antisdvg.BuildConfig.DEEPSEEK_API_KEY }
+        if (effectiveKey.isBlank()) {
             _state.value = _state.value.copy(verify = VerifyState.NoKey)
             return
         }
@@ -94,7 +95,7 @@ class ReadingViewModel(
                     startPage = start,
                     endPage = end,
                     userText = userText,
-                    apiKey = apiKey
+                    apiKey = effectiveKey
                 )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(verify = VerifyState.NoNetwork)
