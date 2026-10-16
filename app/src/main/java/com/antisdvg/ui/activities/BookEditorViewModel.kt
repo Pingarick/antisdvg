@@ -55,14 +55,20 @@ class BookEditorViewModel(
         val requestId = ++lookupRequestId
         _lookupState.value = IsbnLookupState.LOADING
         viewModelScope.launch {
-            // Try Google Books first; if it rate-limits (429) or finds nothing,
+            // Try Google Books first; when it's unreachable or rate-limited,
             // fall back to Open Library (keyless, reachable from any region).
-            val result = try {
+            // Both wrapped: a double network failure must NOT crash the coroutine —
+            // the UI just shows NOT_FOUND and the user can retype/retry.
+            val result = runCatching {
                 lookupGoogle(cleanIsbn)
-            } catch (e: Exception) {
-                android.util.Log.w("IsbnLookup", "Google Books failed for $cleanIsbn: ${e.javaClass.name}: ${e.message}")
+            }.recoverCatching { googleError ->
+                android.util.Log.w(
+                    "IsbnLookup",
+                    "Google Books failed for $cleanIsbn: " +
+                        "${googleError.javaClass.simpleName}: ${googleError.message}"
+                )
                 lookupOpenLibrary(cleanIsbn)
-            }
+            }.getOrNull()
             if (result == null) {
                 if (requestId == lookupRequestId) _lookupState.value = IsbnLookupState.NOT_FOUND
             } else {

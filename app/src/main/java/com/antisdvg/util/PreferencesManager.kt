@@ -15,6 +15,12 @@ class PreferencesManager(context: Context) {
 
     // Remaining access minutes (fast path for the blocker).
     fun readRemainingMinutes(): Int = prefs.getInt(KEY_REMAINING, 0)
+
+    /** Null when the mirror was never written (fresh app data with a restored
+     * database): the caller must bootstrap FROM Room instead of wiping it to zero. */
+    fun readRemainingMinutesOrNull(): Int? =
+        if (prefs.contains(KEY_REMAINING)) prefs.getInt(KEY_REMAINING, 0) else null
+
     fun writeRemainingMinutes(value: Int) = prefs.edit().putInt(KEY_REMAINING, value).apply()
 
     fun readEmergencyTokens(): Int = prefs.getInt(KEY_TOKENS, 3)

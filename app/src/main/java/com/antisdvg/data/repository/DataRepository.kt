@@ -225,11 +225,17 @@ class DataRepository(
      */
     suspend fun syncRemainingFromPrefs() {
         val wallet = dao.getWallet() ?: Wallet()
-        val prefsRemaining = prefs.readRemainingMinutes()
         // The blocker spends minutes on the fast prefs mirror. If prefs has gone
         // down, always reflect that in Room — otherwise the wallet on the main
         // screen sticks at an old value and never reaches zero even though the
         // user has spent their time.
+        //
+        // But an UNSET key means "fresh app data with a restored database", not
+        // "spent everything": bootstrapping the mirror from Room there, the old
+        // min(0, db) logic silently wiped the wallet on every reinstall.
+        val prefsRemaining = prefs.readRemainingMinutesOrNull() ?: wallet.minutesRemaining.also {
+            prefs.writeRemainingMinutes(it)
+        }
         val newRemaining = minOf(prefsRemaining, wallet.minutesRemaining)
         if (newRemaining == wallet.minutesRemaining) return
         val delta = wallet.minutesRemaining - newRemaining
