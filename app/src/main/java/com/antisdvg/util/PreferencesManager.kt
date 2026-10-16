@@ -28,8 +28,30 @@ class PreferencesManager(context: Context) {
 
     fun hasAccess(): Boolean = readRemainingMinutes() > 0 || readEmergencyTokens() > 0
 
+    // Minutes spent today (fast path for the daily-limit gate in the blocker).
+    // Day rollover resets the counter: the value is always "today's" spend.
+    fun currentSpentToday(): Int {
+        val today = TimeCalculator.startOfToday()
+        val day = prefs.getLong(KEY_SPEND_DAY, 0L)
+        if (day != today) {
+            prefs.edit().putLong(KEY_SPEND_DAY, today).putInt(KEY_SPENT_TODAY, 0).apply()
+            return 0
+        }
+        return prefs.getInt(KEY_SPENT_TODAY, 0)
+    }
+
+    fun addSpentToday(delta: Int) {
+        if (delta <= 0) return
+        val today = TimeCalculator.startOfToday()
+        val day = prefs.getLong(KEY_SPEND_DAY, 0L)
+        val base = if (day == today) prefs.getInt(KEY_SPENT_TODAY, 0) else 0
+        prefs.edit().putLong(KEY_SPEND_DAY, today).putInt(KEY_SPENT_TODAY, base + delta).apply()
+    }
+
     companion object {
         private const val KEY_REMAINING = "minutes_remaining"
         private const val KEY_TOKENS = "emergency_tokens"
+        private const val KEY_SPENT_TODAY = "minutes_spent_today"
+        private const val KEY_SPEND_DAY = "spend_day_start"
     }
 }

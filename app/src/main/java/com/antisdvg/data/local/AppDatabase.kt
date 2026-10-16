@@ -11,6 +11,7 @@ import com.antisdvg.data.model.AppSettings
 import com.antisdvg.data.model.BlockedApp
 import com.antisdvg.data.model.Book
 import com.antisdvg.data.model.EmergencyTokens
+import com.antisdvg.data.model.FocusSession
 import com.antisdvg.data.model.ReadingSession
 import com.antisdvg.data.model.UserStats
 import com.antisdvg.data.model.Wallet
@@ -19,6 +20,7 @@ import com.antisdvg.data.model.Wallet
     entities = [
         Book::class,
         ReadingSession::class,
+        FocusSession::class,
         Wallet::class,
         EmergencyTokens::class,
         Achievement::class,
@@ -26,7 +28,7 @@ import com.antisdvg.data.model.Wallet
         AppSettings::class,
         BlockedApp::class
     ],
-    version = 5,
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -43,7 +45,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "anti_sdvg.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).build().also { INSTANCE = it }
             }
 
         /** v1→v2: add the paper/electronic [format] column to books, defaulting to paper. */
@@ -72,6 +74,39 @@ abstract class AppDatabase : RoomDatabase() {
         private val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE books ADD COLUMN coverUrl TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        /** v5→v6: add the AI check strictness to app_settings (0 мягко / 1 норма / 2 строго). */
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE app_settings ADD COLUMN verificationStrictness INTEGER NOT NULL DEFAULT 1")
+            }
+        }
+
+        /** v6→v7: focus sessions table + lifetime focus minutes on user_stats. */
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS focus_sessions (" +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "startedAt INTEGER NOT NULL, " +
+                        "durationMin INTEGER NOT NULL, " +
+                        "completed INTEGER NOT NULL)"
+                )
+                db.execSQL("ALTER TABLE user_stats ADD COLUMN totalFocusMinutes INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        /** v7→v8: daily spend tracking + savings goal ("копилка"). */
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE user_stats ADD COLUMN spentTodayMinutes INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE user_stats ADD COLUMN lastSpendDay INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE app_settings ADD COLUMN dailyLimitMin INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE app_settings ADD COLUMN goalTitle TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE app_settings ADD COLUMN goalTargetMin INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE app_settings ADD COLUMN goalSavedMin INTEGER NOT NULL DEFAULT 0")
             }
         }
     }

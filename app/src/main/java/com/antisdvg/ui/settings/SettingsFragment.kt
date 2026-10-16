@@ -11,7 +11,9 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.antisdvg.R
 import com.antisdvg.databinding.FragmentSettingsBinding
@@ -41,6 +43,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        binding.settingsVersion.text = com.antisdvg.BuildConfig.VERSION_NAME
         blockedAppAdapter = BlockedAppAdapter { app ->
             viewModel.removeBlockedApp(app.packageName)
         }
@@ -74,6 +77,9 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
             } else {
                 viewModel.saveRewards(perPage, emergency)
             }
+            binding.inputDailyLimitEdit.text?.toString()?.toIntOrNull()?.let { limit ->
+                viewModel.saveDailyLimit(limit)
+            }
         }
 
         binding.btnSaveApi.setOnClickListener {
@@ -97,8 +103,20 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
             showInstalledAppPicker()
         }
 
+        binding.strictnessGroup.setOnCheckedChangeListener { _, checkedId ->
+            viewModel.saveVerificationStrictness(
+                when (checkedId) {
+                    R.id.strictness_lenient -> 0
+                    R.id.strictness_strict -> 2
+                    else -> 1
+                }
+            )
+        }
+
         viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             viewModel.state.collect { state -> render(state) }
+            }
         }
     }
 
@@ -184,8 +202,20 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         if (!binding.inputEmergencyMinutesEdit.hasFocus()) {
             binding.inputEmergencyMinutesEdit.setText(settings.emergencyMinutes.toString())
         }
+        if (!binding.inputDailyLimitEdit.hasFocus()) {
+            binding.inputDailyLimitEdit.setText(settings.dailyLimitMin.toString())
+        }
         if (!binding.inputApiKeyEdit.hasFocus()) {
             binding.inputApiKeyEdit.setText(settings.apiKey)
+        }
+
+        val strictButton = when (settings.verificationStrictness) {
+            0 -> R.id.strictness_lenient
+            2 -> R.id.strictness_strict
+            else -> R.id.strictness_normal
+        }
+        if (binding.strictnessGroup.checkedRadioButtonId != strictButton) {
+            binding.strictnessGroup.check(strictButton)
         }
 
         val empty = state.blockedApps.isEmpty()

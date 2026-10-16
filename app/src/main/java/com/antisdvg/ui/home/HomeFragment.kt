@@ -11,7 +11,9 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.antisdvg.R
 import com.antisdvg.data.model.Book
 import com.antisdvg.data.model.progressPercent
@@ -50,10 +52,29 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             }
         }
 
+        binding.homeStartFocusBtn.setOnClickListener {
+            findNavController().navigate(R.id.nav_focus)
+        }
+
+        binding.homeGoalDepositBtn.setOnClickListener {
+            viewModel.depositGoal()
+        }
+        binding.homeGoalEditBtn.setOnClickListener {
+            showGoalDialog()
+        }
+        binding.homeGoalBreakBtn.setOnClickListener {
+            viewModel.breakGoal()
+            android.widget.Toast.makeText(
+                requireContext(), R.string.home_goal_released_simple, android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
+
         viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             viewModel.state.collectLatest { state ->
                 renderStats(state)
                 renderActiveBook(state.activeBook, state.hasBooks)
+            }
             }
         }
     }
@@ -63,7 +84,64 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         binding.homeTodayMinutes.text = state.todayMinutes.toString()
         binding.homeTodayPages.text = state.todayPages.toString()
         binding.homeWalletMinutes.text = state.wallet.minutesRemaining.toString()
-        renderWeek(state.week.map { it.minutes })
+        renderWeek(state.week)
+        renderGoal(state)
+    }
+
+    private fun renderGoal(state: HomeUiState) {
+        val settings = state.settings
+        val hasGoal = settings.goalTargetMin > 0
+        binding.homeGoalTitle.text = if (hasGoal && settings.goalTitle.isNotBlank()) {
+            settings.goalTitle
+        } else {
+            getString(R.string.home_goal_empty)
+        }
+        val saved = settings.goalSavedMin.coerceAtLeast(0)
+        val target = settings.goalTargetMin.coerceAtLeast(0)
+        binding.homeGoalProgressLabel.text = if (hasGoal) {
+            getString(R.string.home_goal_progress, saved, target)
+        } else {
+            getString(R.string.home_goal_empty_hint)
+        }
+        binding.homeGoalBar.max = 100
+        binding.homeGoalBar.progress = if (hasGoal && target > 0) {
+            (saved * 100 / target).coerceIn(0, 100)
+        } else 0
+        binding.homeGoalDepositBtn.isEnabled = hasGoal && state.wallet.minutesRemaining >= 10
+        binding.homeGoalBreakBtn.isVisible = hasGoal && saved > 0
+        if (hasGoal && target > 0 && saved >= target) {
+            binding.homeGoalProgressLabel.text = getString(R.string.home_goal_done)
+        }
+    }
+
+    private fun showGoalDialog() {
+        val context = requireContext()
+        val current = viewModel.state.value.settings
+        val titleInput = android.widget.EditText(context).apply {
+            hint = getString(R.string.home_goal_title_hint)
+            setText(current.goalTitle)
+            setSingleLine()
+        }
+        val targetInput = android.widget.EditText(context).apply {
+            hint = getString(R.string.home_goal_target_hint)
+            setText(if (current.goalTargetMin > 0) current.goalTargetMin.toString() else "")
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+        }
+        val layout = android.widget.LinearLayout(context).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 0)
+            addView(titleInput)
+            addView(targetInput)
+        }
+        androidx.appcompat.app.AlertDialog.Builder(context)
+            .setTitle(R.string.home_goal_edit)
+            .setView(layout)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val target = targetInput.text.toString().toIntOrNull() ?: 0
+                viewModel.saveGoal(titleInput.text.toString(), target)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private var continueCardJustShown = false
@@ -120,19 +198,16 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         }
     }
 
-    private val weekLabels = listOf("П", "В", "С", "Ч", "П", "С", "В")
-
-    private fun renderWeek(minutes: List<Int>) {
+    private fun renderWeek(days: List<com.antisdvg.data.model.DaySummary>) {
         val container = binding.homeWeekChart
         container.removeAllViews()
-        if (minutes.isEmpty()) return
+        if (days.isEmpty()) return
 
-        val max = (minutes.maxOrNull() ?: 1).coerceAtLeast(1)
-        // Выравниваем неделю вправо: если данных меньше 7 дней — заполняем начало пустотами.
-        val offset = (weekLabels.size - minutes.size).coerceAtLeast(0)
+        val max = (days.maxOfOrNull { it.minutes } ?: 1).coerceAtLeast(1)
 
-        minutes.forEachIndexed { index, value ->
-            val dayLabel = weekLabels[offset + index]
+        days.forEach { day ->
+            val value = day.minutes
+            val dayLabel = day.label ?: ""
             val item = View.inflate(requireContext(), R.layout.item_home_week_day, null)
             val bar = item.findViewById<View>(R.id.home_bar)
             val label = item.findViewById<TextView>(R.id.home_day_label)
@@ -152,7 +227,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
     }
 
     private fun Int.dpToPx(): Int =
-        (this * Resources.getSystem().displayMetrics.density).toInt()
+        (this * resources.displayMetrics.density).toInt()
 
     private fun greeting(): String = when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
         in 5..11 -> getString(R.string.home_greeting_morning)

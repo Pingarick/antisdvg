@@ -48,4 +48,34 @@ class AIRepositoryTest {
         assertTrue(res.ok)
         assertEquals("score", res.taskType)
     }
+
+    @Test
+    fun `systemPrompt echoes retelling taskType`() {
+        val book = com.antisdvg.data.model.Book(title = "Тест", author = "Автор")
+        val prompt = repo.buildSystemPrompt(book, 1, 10, "retelling", 1)
+        assertTrue(prompt.contains("\"taskType\": \"retelling\""))
+    }
+
+    @Test
+    fun `systemPrompt strictness changes wording`() {
+        val book = com.antisdvg.data.model.Book(title = "Тест", author = "Автор")
+        val lenient = repo.buildSystemPrompt(book, 1, 10, "score", 0)
+        val strict = repo.buildSystemPrompt(book, 1, 10, "score", 2)
+        assertTrue(lenient.contains("мягким"))
+        assertTrue(strict.contains("строгим"))
+    }
+
+    @Test
+    fun `userMessage includes quote when provided`() {
+        val msg = repo.buildUserMessage("пересказ", emptyList(), "цитата из книги")
+        assertTrue(msg.contains("пересказ"))
+        assertTrue(msg.contains("цитата из книги"))
+    }
+
+    @Test
+    fun `userMessage omits quote section when blank`() {
+        val msg = repo.buildUserMessage("пересказ", emptyList(), "")
+        assertTrue(msg.contains("пересказ"))
+        assertFalse(msg.contains("Цитата"))
+    }
 }

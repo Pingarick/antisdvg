@@ -37,7 +37,8 @@ data class StatsUiState(
     val week: List<DaySummary> = emptyList(),
     val period: StatsPeriod = StatsPeriod.ALL,
     val periodMinutes: Int = 0,
-    val periodPages: Int = 0
+    val periodPages: Int = 0,
+    val focusMinutesTotal: Int = 0
 )
 
 class StatsViewModel(
@@ -50,14 +51,20 @@ class StatsViewModel(
 
     init {
         // Live "remaining now" from the fast prefs mirror. The BlockerService
-        // spends minutes here in real time, so a modest poll keeps the number
-        // honest while the screen is open.
+        // spends minutes here in real time. Polls prefs cheaply; hits Room only
+        // when the minute value actually changed (screen updates via
+        // repeatOnLifecycle, so background polls are cheap and stop with the VM).
         viewModelScope.launch {
-            _state.update { it.copy(liveRemainingMinutes = prefs.readRemainingMinutes()) }
+            var lastSeen = prefs.readRemainingMinutes()
+            _state.update { it.copy(liveRemainingMinutes = lastSeen) }
             while (true) {
                 delay(10_000)
-                _state.update { it.copy(liveRemainingMinutes = prefs.readRemainingMinutes()) }
-                refreshTodayAndWeek()
+                val now = prefs.readRemainingMinutes()
+                _state.update { it.copy(liveRemainingMinutes = now) }
+                if (now != lastSeen) {
+                    lastSeen = now
+                    refreshTodayAndWeek()
+                }
             }
         }
 
@@ -89,11 +96,13 @@ class StatsViewModel(
     private suspend fun refreshTodayAndWeek() {
         val today = repo.todaySummary()
         val week = buildChart(_state.value.period)
+        val focusTotal = repo.totalFocusMinutes()
         _state.update {
             it.copy(
                 todayMinutes = today.first,
                 todayPages = today.second,
-                week = week
+                week = week,
+                focusMinutesTotal = focusTotal
             )
         }
     }
@@ -193,10 +202,7 @@ class StatsViewModel(
         val current = _state.value.tokens
         if (current.count <= 0) return
         viewModelScope.launch {
-            val spent = repo.spendEmergencyToken()
-            if (spent) {
-                repo.grantEmergencyMinutes(repo.getSettings().emergencyMinutes.coerceAtLeast(0))
-            }
+            repo.spendTokenForMinutes(repo.getSettings().emergencyMinutes.coerceAtLeast(0))
         }
     }
 }

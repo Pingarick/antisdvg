@@ -55,6 +55,43 @@
     <!-- Reading -->
     <string name="read_pages">Сколько страниц ты прочитал?</string>
     <string name="retelling_hint">Напиши пересказ своими словами…</string>
+    <string name="quote_hint">Цитата из книги (необязательно, усиливает проверку)…</string>
+    <string name="strictness_title">Строгость проверки ИИ</string>
+    <string name="strictness_lenient">Мягко</string>
+    <string name="strictness_normal">Нормально</string>
+    <string name="strictness_strict">Строго</string>
+    <string name="daily_limit">Дневной лимит трат (0 — без лимита)</string>
+
+    <!-- Focus -->
+    <string name="focus_title">Фокус-сессия</string>
+    <string name="focus_phase_idle">Готов к 25 минутам без отвлечений?</string>
+    <string name="focus_phase_focus">Фокус: убери телефон и читай</string>
+    <string name="focus_phase_break">Перерыв 5 минут ☕</string>
+    <string name="focus_phase_done">Готово! Можно начинать новый цикл</string>
+    <string name="focus_start">Начать</string>
+    <string name="focus_pause">Пауза</string>
+    <string name="focus_stop">Сбросить</string>
+    <string name="focus_skip_break">Пропустить перерыв</string>
+    <string name="focus_cycles">Циклов сегодня: %1$d</string>
+    <string name="focus_earned">+ %1$d мин за фокус 🎉</string>
+    <string name="focus_hint">Завершённый 25-минутный блок приносит минуты отдыха 1:1. Пауза не сбрасывает прогресс, уход с экрана — отменяет забег.</string>
+    <string name="home_start_focus">Начать фокус-сессию ⏱</string>
+    <string name="home_goal_empty">Копилка: пока нет цели</string>
+    <string name="home_goal_empty_hint">Заведи цель кнопкой «Цель…» и откладывай по 10 мин</string>
+    <string name="home_goal_progress">%1$d из %2$d мин</string>
+    <string name="home_goal_deposit">+10 в копилку</string>
+    <string name="home_goal_edit">Цель…</string>
+    <string name="home_goal_break">Разбить копилку</string>
+    <string name="home_goal_title_hint">На что копим?</string>
+    <string name="home_goal_target_hint">Сколько минут?</string>
+    <string name="home_goal_saved">Отложено %1$d мин 🐷</string>
+    <string name="home_goal_released">Копилка разбита: +%1$d мин в кошелёк</string>
+    <string name="home_goal_released_simple">Копилка разбита, минуты вернулись в кошелёк</string>
+    <string name="home_goal_done">Цель достигнута! 🎉</string>
+    <string name="widget_label">Анти-СДВГ: кошелёк</string>
+    <string name="widget_desc">Минуты отдыха и огоньки без открытия приложения</string>
+    <string name="widget_tokens">🔥 %1$d</string>
+    <string name="stats_focus_label">Минут фокуса</string>
     <string name="check_progress">Проверить</string>
     <string name="microphone_hint">Голосовой ввод</string>
     <string name="verify_in_progress">ИИ проверяет твой пересказ…</string>

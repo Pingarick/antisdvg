@@ -8,7 +8,9 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.antisdvg.R
@@ -50,11 +52,13 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
         binding.emptyAddBtn.setOnClickListener { openBookEditor(null) }
 
         viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             viewModel.books.collect { books ->
                 adapter.submitList(books)
                 binding.emptyState.visibility =
                     if (books.isEmpty()) View.VISIBLE else View.GONE
                 binding.librarySubtitle.text = pluralBooks(books.size)
+            }
             }
         }
     }

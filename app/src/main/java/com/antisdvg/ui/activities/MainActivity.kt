@@ -21,6 +21,22 @@ class MainActivity : AppCompatActivity() {
         val navHost = supportFragmentManager
             .findFragmentById(R.id.nav_host) as NavHostFragment
         binding.bottomNav.setupWithNavController(navHost.navController)
+
+        handleNavigationIntent(intent)
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleNavigationIntent(intent)
+    }
+
+    private fun handleNavigationIntent(intent: android.content.Intent?) {
+        if (intent?.getBooleanExtra("open_reading", false) == true) {
+            val navHost = supportFragmentManager
+                .findFragmentById(R.id.nav_host) as? NavHostFragment
+            navHost?.navController?.navigate(R.id.nav_reading)
+        }
     }
 
     override fun onDestroy() {

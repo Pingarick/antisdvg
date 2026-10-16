@@ -49,6 +49,10 @@ class WeekChartView @JvmOverloads constructor(
     private var animator: ValueAnimator? = null
 
     fun setData(week: List<DaySummary>) {
+        if (this.week == week && grow == 1f) {
+            invalidate()
+            return
+        }
         this.week = week
         animator?.cancel()
         animator = ValueAnimator.ofFloat(0f, 1f).apply {
@@ -91,7 +95,7 @@ class WeekChartView @JvmOverloads constructor(
             }
             val top = baseline - barHeight
             val rect = RectF(left, top, left + barWidth, baseline)
-            canvas.drawRoundRect(rect, dp(4f), dp(4f), if (i == n - 1) todayPaint else barPaint)
+            canvas.drawRoundRect(rect, dp(4f), dp(4f), if (isTodayBucket(i)) todayPaint else barPaint)
 
             // Empty-slice tick marker.
             if (day.pages == 0) {
@@ -121,4 +125,15 @@ class WeekChartView @JvmOverloads constructor(
     }
 
     private fun dp(value: Float): Float = value * resources.displayMetrics.density
+
+    /** Highlights the bucket containing today: exact day match, else last started bucket. */
+    private fun isTodayBucket(index: Int): Boolean {
+        if (week.isEmpty() || index !in week.indices) return false
+        val today = com.antisdvg.util.TimeCalculator.startOfToday()
+        week.indexOfFirst { it.dayStartMillis == today }.let { exact ->
+            if (exact >= 0) return index == exact
+        }
+        val lastStarted = week.indexOfLast { it.dayStartMillis <= today }
+        return index == lastStarted
+    }
 }

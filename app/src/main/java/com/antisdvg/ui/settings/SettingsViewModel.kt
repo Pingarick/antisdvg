@@ -58,6 +58,22 @@ class SettingsViewModel(
         }
     }
 
+    fun saveDailyLimit(minutes: Int) {
+        viewModelScope.launch {
+            repo.setDailyLimit(minutes)
+        }
+    }
+
+    fun saveVerificationStrictness(strictness: Int) {
+        val level = strictness.coerceIn(0, 2)
+        if (state.value.settings.verificationStrictness == level) return
+        viewModelScope.launch {
+            repo.updateSettings(
+                state.value.settings.copy(verificationStrictness = level)
+            )
+        }
+    }
+
     fun addBlockedApp(packageName: String, label: String) {
         val cleaned = packageName.trim()
         if (cleaned.isEmpty()) return

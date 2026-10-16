@@ -7,7 +7,9 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.button.MaterialButtonToggleGroup
@@ -64,7 +66,9 @@ class StatsFragment : Fragment(R.layout.fragment_stats) {
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             viewModel.state.collect { state -> render(state) }
+            }
         }
     }
 
@@ -82,6 +86,7 @@ class StatsFragment : Fragment(R.layout.fragment_stats) {
         binding.statBooksValue.text = state.stats.totalBooksRead.toString()
         binding.statPagesValue.text = state.periodPages.toString()
         binding.statTimeValue.text = state.periodMinutes.toString()
+        binding.statFocusValue.text = state.focusMinutesTotal.toString()
         binding.statStreakValue.text = state.stats.currentStreak.toString()
 
         binding.formatPaperValue.text = state.paperPages.toString()

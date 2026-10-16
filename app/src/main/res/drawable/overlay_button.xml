@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Solid CTA background for service overlay windows.
+     Plain shape on purpose: MaterialButton styling does not resolve reliably
+     in an AccessibilityService overlay window (no activity theme), which left
+     the buttons invisible. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/accent_primary" />
+    <corners android:radius="12dp" />
+    <padding
+        android:left="24dp"
+        android:top="12dp"
+        android:right="24dp"
+        android:bottom="12dp" />
+</shape>

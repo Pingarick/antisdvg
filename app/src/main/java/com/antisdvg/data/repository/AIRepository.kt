@@ -17,6 +17,12 @@ import org.json.JSONObject
  */
 class AIRepository {
 
+    companion object {
+        const val STRICTNESS_LENIENT = 0
+        const val STRICTNESS_NORMAL = 1
+        const val STRICTNESS_STRICT = 2
+    }
+
     /**
      * Asks DeepSeek to verify a reading session.
      *
@@ -25,6 +31,10 @@ class AIRepository {
      * @param endPage last page of this session (1-based).
      * @param userText the user's retelling or answers (voice transcribed).
      * @param questions pre-generated questions if the caller held a quiz.
+     * @param quote optional verbatim quote from the read pages as extra proof.
+     * @param taskType [VerifyResult.TASK_RETELLING] for a full check,
+     * [VerifyResult.TASK_SCORE] for a quick meaning check.
+     * @param strictness 0 = мягко, 1 = нормально, 2 = строго.
      * @return a [VerifyResult] with the AI's verdict.
      */
     suspend fun verifyReading(
@@ -33,10 +43,13 @@ class AIRepository {
         endPage: Int,
         userText: String,
         questions: List<String> = emptyList(),
+        quote: String = "",
+        taskType: String = VerifyResult.TASK_SCORE,
+        strictness: Int = STRICTNESS_NORMAL,
         apiKey: String = BuildConfig.DEEPSEEK_API_KEY
     ): VerifyResult {
-        val prompt = buildSystemPrompt(book, startPage, endPage)
-        val userMessage = buildUserMessage(userText, questions)
+        val prompt = buildSystemPrompt(book, startPage, endPage, taskType, strictness)
+        val userMessage = buildUserMessage(userText, questions, quote)
 
         val response = try {
             DeepSeekClient.api.chat(
@@ -77,30 +90,128 @@ class AIRepository {
         return parse(cleanJson(raw))
     }
 
-    private fun buildSystemPrompt(book: Book, startPage: Int, endPage: Int): String {
+    /**
+     * Generates a 3-question multiple choice quiz for testing comprehension of read pages.
+     */
+    suspend fun generateQuiz(
+        book: Book,
+        startPage: Int,
+        endPage: Int,
+        apiKey: String = BuildConfig.DEEPSEEK_API_KEY
+    ): List<com.antisdvg.data.model.QuizQuestion> {
+        val prompt = buildString {
+            appendLine("Ты — преподаватель. Пользователь прочитал страницы $startPage-$endPage книги «${book.title}» (${book.author}).")
+            appendLine("Составь ровно 3 вопроса с 4 вариантами ответа для проверки понимания сути этих страниц.")
+            appendLine("Вопросы должны проверять ключевые события, идеи и логику, без придирок к мелким деталям.")
+            appendLine("Ответь ТОЛЬКО валидным JSON-массивом (без markdown разметки) в формате:")
+            appendLine("[")
+            appendLine("  {")
+            appendLine("    \"question\": \"Текст вопроса?\",")
+            appendLine("    \"options\": [\"Вариант 1\", \"Вариант 2\", \"Вариант 3\", \"Вариант 4\"],")
+            appendLine("    \"correctIndex\": 0")
+            appendLine("  }")
+            appendLine("]")
+        }
+
+        val response = try {
+            DeepSeekClient.api.chat(
+                authorization = "Bearer ${apiKey.ifBlank { BuildConfig.DEEPSEEK_API_KEY }}",
+                request = ChatRequest(
+                    messages = listOf(
+                        ChatMessage("system", prompt),
+                        ChatMessage("user", "Сгенерируй квиз по страницам $startPage-$endPage книги «${book.title}».")
+                    )
+                )
+            )
+        } catch (e: Exception) {
+            return emptyList()
+        }
+
+        if (!response.isSuccessful) return emptyList()
+        val raw = response.body()?.choices?.firstOrNull()?.message?.content ?: return emptyList()
+        return parseQuizJson(cleanJson(raw))
+    }
+
+    internal fun parseQuizJson(json: String): List<com.antisdvg.data.model.QuizQuestion> {
+        val list = mutableListOf<com.antisdvg.data.model.QuizQuestion>()
+        try {
+            val array = org.json.JSONArray(json)
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                val qText = obj.optString("question", "")
+                val optionsArray = obj.optJSONArray("options")
+                val options = mutableListOf<String>()
+                if (optionsArray != null) {
+                    for (j in 0 until optionsArray.length()) {
+                        options.add(optionsArray.getString(j))
+                    }
+                }
+                val correctIndex = obj.optInt("correctIndex", 0)
+                if (qText.isNotBlank() && options.isNotEmpty()) {
+                    list.add(com.antisdvg.data.model.QuizQuestion(qText, options, correctIndex))
+                }
+            }
+        } catch (e: Exception) {
+            // best-effort
+        }
+        return list
+    }
+
+    internal fun buildSystemPrompt(
+        book: Book,
+        startPage: Int,
+        endPage: Int,
+        taskType: String = VerifyResult.TASK_SCORE,
+        strictness: Int = STRICTNESS_NORMAL
+    ): String {
+        val level = strictness.coerceIn(STRICTNESS_LENIENT, STRICTNESS_STRICT)
+        val strictBlock = when (level) {
+            STRICTNESS_LENIENT -> buildString {
+                appendLine("Будь мягким: засчитывай, если человек уловил хотя бы общую тему страниц.")
+                appendLine("Не требуй деталей, имён и последовательности событий.")
+                appendLine("passed=false ставь только если ответ явно не про эту книгу.")
+            }
+            STRICTNESS_STRICT -> buildString {
+                appendLine("Будь строгим: требуй конкретные детали страниц — кто, что сделал, чем закончилось.")
+                appendLine("Расплывчатый пересказ «ни о чём» — это passed=false.")
+                appendLine("Если есть цитата пользователя — сверь её смысл с пересказом: противоречие = passed=false.")
+            }
+            else -> buildString {
+                appendLine("Проверь, понял ли он суть прочитанного: ключевые события, героев, логику истории.")
+                appendLine("НЕ выпытывай имена второстепенных персонажей, точные даты, числа и мелкие детали.")
+                appendLine("Если человек передаёт главное своими словами — считай это пройденным, даже если пересказ неполный.")
+            }
+        }
+        val taskBlock = if (taskType == VerifyResult.TASK_RETELLING) {
+            "Разбери пересказ по трём пунктам: герои, события, вывод. " +
+                "Затем вынеси вердикт. В feedback сначала 1-2 предложения по существу, " +
+                "потом коротко отметь, чего не хватило."
+        } else {
+            "Оцени понимание сути коротко: 1-2 предложения обратной связи на русском."
+        }
         val context = buildString {
             appendLine("Ты — доброжелательный преподаватель по чтению, но не педант.")
             appendLine("Пользователь прочитал страницы $startPage-$endPage книги «${book.title}» (${book.author}).")
             appendLine()
-            appendLine("Проверь, понял ли он суть прочитанного: ключевые события, героев, логику истории.")
-            appendLine("НЕ выпытывай имена второстепенных персонажей, точные даты, числа и мелкие детали.")
-            appendLine("Если человек передаёт главное своими словами — считай это пройденным, даже если пересказ неполный.")
-            appendLine("Отвечай кратко: 1-2 предложения обратной связи на русском.")
+            append(strictBlock)
+            appendLine(taskBlock)
             appendLine()
             appendLine("Ответь ТОЛЬКО валидным JSON (без markdown) в формате:")
-            appendLine("{\"taskType\": \"score\", \"passed\": true|false, \"feedback\": \"1-2 предложения\", \"questions\": []}")
+            appendLine("{\"taskType\": \"$taskType\", \"passed\": true|false, \"feedback\": \"1-2 предложения\", \"questions\": []}")
             appendLine()
             appendLine("passed=true, если понята суть. passed=false, только если ответ явно мимо темы — похоже, что человек и не читал.")
         }
         return context
     }
 
-    private fun buildUserMessage(userText: String, questions: List<String>): String {
-        if (questions.isNotEmpty()) {
+    internal fun buildUserMessage(userText: String, questions: List<String>, quote: String = ""): String {
+        val base = if (questions.isNotEmpty()) {
             val q = questions.mapIndexed { i, s -> "${i + 1}. $s" }.joinToString("\n")
-            return "Вопросы:\n$q\n\nОтветы пользователя:\n$userText"
+            "Вопросы:\n$q\n\nОтветы пользователя:\n$userText"
+        } else {
+            "Пересказ пользователя:\n$userText"
         }
-        return "Пересказ пользователя:\n$userText"
+        return if (quote.isNotBlank()) "$base\n\nЦитата пользователя из книги:\n$quote" else base
     }
 
     internal fun cleanJson(raw: String): String {

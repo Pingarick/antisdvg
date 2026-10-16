@@ -38,6 +38,8 @@ class AppViewModelFactory(
                 com.antisdvg.ui.settings.SettingsViewModel(repo)
             modelClass == com.antisdvg.ui.activities.BookEditorViewModel::class.java ->
                 com.antisdvg.ui.activities.BookEditorViewModel(repo)
+            modelClass == com.antisdvg.ui.focus.FocusViewModel::class.java ->
+                com.antisdvg.ui.focus.FocusViewModel(repo)
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         } as T
     }

@@ -15,7 +15,15 @@ data class AppSettings(
     // Minutes of grace a single emergency token grants.
     var emergencyMinutes: Int = 10,
     // Whether the in-app toggle is on. (System service must still be enabled separately.)
-    var blockerEnabled: Boolean = false
+    var blockerEnabled: Boolean = false,
+    // AI check strictness: 0 = мягко, 1 = нормально, 2 = строго.
+    var verificationStrictness: Int = 1,
+    // Daily spend cap for entertainment minutes (0 = unlimited).
+    var dailyLimitMin: Int = 0,
+    // Savings goal ("копилка"): title + target, with already stashed minutes.
+    var goalTitle: String = "",
+    var goalTargetMin: Int = 0,
+    var goalSavedMin: Int = 0
 ) {
     companion object {
         const val SETTINGS_ROW = 1

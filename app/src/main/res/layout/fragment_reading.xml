@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Reading flow: confirm the pages read, write a retelling, let the AI verify
-  it, and show the verification result (success / failure / no key / no net).
+  Reading flow: confirm the pages read, write a retelling, let the AI verify.
+  Updated with mode toggle (Пересказ / Квиз) and quiz container.
 -->
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -89,6 +89,29 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Mode toggle -->
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/mode_toggle_group"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            app:singleSelection="true">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_mode_retell"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Пересказ" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_mode_quiz"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Квиз" />
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
         <!-- Page range -->
         <TextView
             android:id="@+id/section_page_range"
@@ -161,8 +184,9 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Retelling -->
+        <!-- Retelling block (hidden in quiz mode) -->
         <com.google.android.material.card.MaterialCardView
+            android:id="@+id/retelling_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
@@ -199,6 +223,28 @@
                         android:textColor="@color/brown" />
                 </com.google.android.material.textfield.TextInputLayout>
 
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/input_quote"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="@string/quote_hint"
+                    app:boxBackgroundColor="@color/cream_light"
+                    app:boxStrokeColor="@color/gold_dark"
+                    app:boxStrokeWidth="1dp">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/input_quote_edit"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="top|start"
+                        android:inputType="textMultiLine"
+                        android:minHeight="64dp"
+                        android:maxLines="4"
+                        android:textColor="@color/brown" />
+                </com.google.android.material.textfield.TextInputLayout>
+
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_voice_input"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
@@ -221,7 +267,26 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Result -->
+        <!-- Quiz container (populated dynamically) -->
+        <LinearLayout
+            android:id="@+id/quiz_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:layout_marginTop="8dp" />
+
+        <!-- Submit quiz button (visible when quiz loaded) -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_submit_quiz"
+            style="@style/Widget.Book.Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Отправить ответы"
+            android:visibility="gone" />
+
+        <!-- Result card -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/reading_result_card"
             android:layout_width="match_parent"

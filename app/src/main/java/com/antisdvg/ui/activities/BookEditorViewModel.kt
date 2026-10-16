@@ -38,10 +38,21 @@ class BookEditorViewModel(
     private val _lookupResult = MutableStateFlow<IsbnLookupResult?>(null)
     val lookupResult: StateFlow<IsbnLookupResult?> = _lookupResult
 
+    private var lookupRequestId = 0
+
+    fun resetLookup() {
+        _lookupResult.value = null
+        _lookupState.value = IsbnLookupState.IDLE
+    }
+
     /** Looks up an ISBN via Google Books and pre-fills the editor with its metadata. */
-    fun lookupIsbn(isbn: String) {
-        val cleanIsbn = isbn.trim()
-        if (cleanIsbn.isEmpty()) return
+    fun lookupIsbn(rawIsbn: String) {
+        val cleanIsbn = com.antisdvg.util.IsbnUtils.normalize(rawIsbn)
+        if (cleanIsbn.isEmpty()) {
+            _lookupState.value = IsbnLookupState.NOT_FOUND
+            return
+        }
+        val requestId = ++lookupRequestId
         _lookupState.value = IsbnLookupState.LOADING
         viewModelScope.launch {
             // Try Google Books first; if it rate-limits (429) or finds nothing,
@@ -53,10 +64,12 @@ class BookEditorViewModel(
                 lookupOpenLibrary(cleanIsbn)
             }
             if (result == null) {
-                _lookupState.value = IsbnLookupState.NOT_FOUND
+                if (requestId == lookupRequestId) _lookupState.value = IsbnLookupState.NOT_FOUND
             } else {
-                _lookupResult.value = result
-                _lookupState.value = IsbnLookupState.FOUND
+                if (requestId == lookupRequestId) {
+                    _lookupResult.value = result
+                    _lookupState.value = IsbnLookupState.FOUND
+                }
             }
         }
     }
@@ -112,6 +125,7 @@ class BookEditorViewModel(
         if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
             cleanUrl = "https://$cleanUrl"
         }
+        val requestId = ++lookupRequestId
         _lookupState.value = IsbnLookupState.LOADING
         viewModelScope.launch {
             val meta = try {
@@ -120,6 +134,7 @@ class BookEditorViewModel(
                 android.util.Log.w("YandexLookup", "Yandex Books parse failed: ${e.javaClass.name}: ${e.message}")
                 null
             }
+            if (requestId != lookupRequestId) return@launch
             if (meta == null || !meta.found) {
                 _lookupState.value = IsbnLookupState.NOT_FOUND
             } else {

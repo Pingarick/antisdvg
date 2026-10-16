@@ -10,12 +10,14 @@ import com.antisdvg.data.model.BookStatus
 import com.antisdvg.data.model.DayReading
 import com.antisdvg.data.model.DaySummary
 import com.antisdvg.data.model.EmergencyTokens
+import com.antisdvg.data.model.FocusSession
 import com.antisdvg.data.model.ReadingSession
 import com.antisdvg.data.model.StatsView
 import com.antisdvg.data.model.UserStats
 import com.antisdvg.data.model.Wallet
 import com.antisdvg.util.PreferencesManager
 import com.antisdvg.util.TimeCalculator
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 
@@ -33,7 +35,7 @@ class DataRepository(
     fun observeBooks(): Flow<List<Book>> = dao.observeBooks()
     fun observeBook(id: Long): Flow<Book?> = dao.observeBook(id)
 
-    fun getActiveBook(): Book? = dao.findActive(BookStatus.ACTIVE)
+    suspend fun getActiveBook(): Book? = dao.findActive(BookStatus.ACTIVE)
     suspend fun addBook(book: Book): Long = dao.insertBook(book)
     suspend fun updateBook(book: Book) = dao.updateBook(book)
 
@@ -47,6 +49,7 @@ class DataRepository(
      * Removes a book and its reading sessions permanently. The wallet,
      * tokens, and lifetime stats are left untouched.
      */
+    @Transaction
     suspend fun deleteBook(bookId: Long) {
         dao.deleteSessionsForBook(bookId)
         dao.deleteBook(bookId)
@@ -56,6 +59,7 @@ class DataRepository(
      * Marks a book completed, closes its read status, and bumps the
      * total-books-read counter if this is the first time it finishes.
      */
+    @Transaction
     suspend fun finishBook(book: Book) {
         if (book.status == BookStatus.READ) return
         dao.updateBook(book.copy(status = BookStatus.READ, finishDate = System.currentTimeMillis()))
@@ -69,6 +73,7 @@ class DataRepository(
      * the earned minutes to the wallet, refreshes the shared-prefs mirror,
      * updates streak, and awards an emergency token.
      */
+    @Transaction
     suspend fun recordSession(
         book: Book,
         startPage: Int,
@@ -81,6 +86,7 @@ class DataRepository(
         // 1. Advance the book.
         val nextPage = endPage.coerceAtMost(book.totalPages)
         val finished = nextPage >= book.totalPages
+        val wasFinished = book.status == BookStatus.READ
         dao.updateBook(
             book.copy(
                 currentPage = nextPage,
@@ -126,18 +132,52 @@ class DataRepository(
         val stats = dao.getStats() ?: UserStats()
         val pagesTotal = dao.totalPagesRead()
         val streak = TimeCalculator.advanceStreak(stats.lastActiveDay, stats.currentStreak)
+        val newlyFinished = finished && !wasFinished
         val updatedStats = stats.copy(
+            totalBooksRead = stats.totalBooksRead + if (newlyFinished) 1 else 0,
             totalPagesRead = pagesTotal,
             totalReadingTimeMinutes = stats.totalReadingTimeMinutes + earnedMinutes,
             currentStreak = streak,
             highestStreak = maxOf(stats.highestStreak, streak),
-            lastActiveDay = System.currentTimeMillis()
+            lastActiveDay = TimeCalculator.startOfDay(System.currentTimeMillis())
         )
         dao.upsertStats(updatedStats)
 
         // 6. Recompute achievements.
         evaluateAchievements(updatedStats)
     }
+
+    // ---- Focus sessions ----
+    /**
+     * Records a completed pomodoro-style focus block: persists the session,
+     * credits entertainment minutes 1:1 and bumps lifetime focus stats.
+     * Returns the earned minutes.
+     */
+    @Transaction
+    suspend fun recordFocusSession(durationMin: Int): Int {
+        val earned = durationMin.coerceAtLeast(0)
+        dao.insertFocusSession(
+            FocusSession(
+                startedAt = System.currentTimeMillis() - earned * 60_000L,
+                durationMin = earned,
+                completed = true
+            )
+        )
+        val wallet = dao.getWallet() ?: Wallet()
+        val updated = wallet.copy(
+            minutesEarned = wallet.minutesEarned + earned,
+            minutesRemaining = wallet.minutesRemaining + earned,
+            lastUpdated = System.currentTimeMillis()
+        )
+        dao.upsertWallet(updated)
+        prefs.writeRemainingMinutes(updated.minutesRemaining)
+        val stats = dao.getStats() ?: UserStats()
+        dao.upsertStats(stats.copy(totalFocusMinutes = stats.totalFocusMinutes + earned))
+        return earned
+    }
+
+    suspend fun totalFocusMinutes(): Int = dao.totalFocusMinutes()
+    suspend fun countFocusSessions(): Int = dao.countFocusSessions()
 
     // ---- Achievements ----
     fun observeAchievements(): Flow<List<Achievement>> = dao.observeAchievements()
@@ -192,8 +232,17 @@ class DataRepository(
         // user has spent their time.
         val newRemaining = minOf(prefsRemaining, wallet.minutesRemaining)
         if (newRemaining == wallet.minutesRemaining) return
-        val used = wallet.minutesUsed + (wallet.minutesRemaining - newRemaining)
+        val delta = wallet.minutesRemaining - newRemaining
+        val used = wallet.minutesUsed + delta
         dao.upsertWallet(wallet.copy(minutesUsed = used, minutesRemaining = newRemaining))
+        // Attribute the spend to today (with day rollover) for the daily limit.
+        val stats = dao.getStats() ?: UserStats()
+        val today = TimeCalculator.startOfDay(System.currentTimeMillis())
+        val (day, total) = com.antisdvg.util.SpendTracker.apply(
+            stats.lastSpendDay, stats.spentTodayMinutes, delta, today
+        )
+        dao.upsertStats(stats.copy(lastSpendDay = day, spentTodayMinutes = total))
+        prefs.addSpentToday(delta)
     }
 
     /**
@@ -208,6 +257,23 @@ class DataRepository(
         return true
     }
 
+    /** Atomic spend-token-then-grant-minutes used by UI and blocker. */
+    @Transaction
+    suspend fun spendTokenForMinutes(minutes: Int): Boolean {
+        val tokens = dao.getTokens() ?: EmergencyTokens()
+        if (tokens.count <= 0) return false
+        dao.upsertTokens(tokens.copy(count = tokens.count - 1, lastEarned = tokens.lastEarned))
+        val wallet = dao.getWallet() ?: Wallet()
+        val updated = wallet.copy(
+            minutesRemaining = wallet.minutesRemaining + minutes,
+            lastUpdated = System.currentTimeMillis()
+        )
+        dao.upsertWallet(updated)
+        prefs.writeEmergencyTokens(tokens.count - 1)
+        prefs.writeRemainingMinutes(updated.minutesRemaining)
+        return true
+    }
+
     /** Credit emergency-access minutes gained from spending a token. */
     suspend fun grantEmergencyMinutes(minutes: Int) {
         val wallet = dao.getWallet() ?: Wallet()
@@ -217,6 +283,65 @@ class DataRepository(
         )
         dao.upsertWallet(updated)
         prefs.writeRemainingMinutes(updated.minutesRemaining)
+    }
+
+    // ---- Daily limit & savings goal ("копилка") ----
+    suspend fun setDailyLimit(minutes: Int) {
+        val settings = dao.getSettings() ?: AppSettings()
+        dao.upsertSettings(settings.copy(dailyLimitMin = minutes.coerceAtLeast(0)))
+    }
+
+    suspend fun setGoal(title: String, targetMin: Int) {
+        val settings = dao.getSettings() ?: AppSettings()
+        dao.upsertSettings(
+            settings.copy(
+                goalTitle = title.trim().take(60),
+                goalTargetMin = targetMin.coerceAtLeast(0)
+            )
+        )
+    }
+
+    /**
+     * Moves [amount] minutes from the wallet into the savings goal.
+     * Returns the actually stashed amount (limited by the wallet balance).
+     */
+    @Transaction
+    suspend fun depositToGoal(amount: Int): Int {
+        val settings = dao.getSettings() ?: AppSettings()
+        if (settings.goalTargetMin <= 0) return 0
+        val wallet = dao.getWallet() ?: Wallet()
+        val stashed = amount.coerceAtLeast(0).coerceAtMost(wallet.minutesRemaining)
+        if (stashed <= 0) return 0
+        dao.upsertWallet(
+            wallet.copy(
+                minutesRemaining = wallet.minutesRemaining - stashed,
+                lastUpdated = System.currentTimeMillis()
+            )
+        )
+        dao.upsertSettings(settings.copy(goalSavedMin = settings.goalSavedMin + stashed))
+        prefs.writeRemainingMinutes(wallet.minutesRemaining - stashed)
+        return stashed
+    }
+
+    /**
+     * "Breaks" the piggy bank: returns everything stashed back to the wallet.
+     * Returns the released amount.
+     */
+    @Transaction
+    suspend fun breakGoal(): Int {
+        val settings = dao.getSettings() ?: AppSettings()
+        val released = settings.goalSavedMin.coerceAtLeast(0)
+        if (released <= 0) return 0
+        val wallet = dao.getWallet() ?: Wallet()
+        dao.upsertWallet(
+            wallet.copy(
+                minutesRemaining = wallet.minutesRemaining + released,
+                lastUpdated = System.currentTimeMillis()
+            )
+        )
+        dao.upsertSettings(settings.copy(goalSavedMin = 0))
+        prefs.writeRemainingMinutes(wallet.minutesRemaining + released)
+        return released
     }
 
     // ---- Blocked apps ----

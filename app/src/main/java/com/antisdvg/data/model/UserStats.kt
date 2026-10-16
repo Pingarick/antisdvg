@@ -15,7 +15,11 @@ data class UserStats(
     var totalReadingTimeMinutes: Int = 0,
     var currentStreak: Int = 0,
     var highestStreak: Int = 0,
-    var lastActiveDay: Long = 0L
+    var lastActiveDay: Long = 0L,
+    var totalFocusMinutes: Int = 0,
+    // Entertainment minutes spent on the current calendar day (start-of-day + sum).
+    var spentTodayMinutes: Int = 0,
+    var lastSpendDay: Long = 0L
 ) {
     companion object {
         const val STATS_ROW = 1

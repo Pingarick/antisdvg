@@ -84,9 +84,19 @@ class BarcodeScanActivity : AppCompatActivity() {
                             Toast.makeText(
                                 this@BarcodeScanActivity, R.string.isbn_error, Toast.LENGTH_SHORT
                             ).show()
-                            deliver(null)
+                            // Allow retry instead of closing: reset for the next frame.
+                            delivered = false
+                            lastScannedIsbn = ""
+                            bookEditorViewModel.resetLookup()
                         }
-                        IsbnLookupState.NOT_FOUND -> deliver(null)
+                        IsbnLookupState.NOT_FOUND -> {
+                            Toast.makeText(
+                                this@BarcodeScanActivity, R.string.isbn_not_found, Toast.LENGTH_SHORT
+                            ).show()
+                            delivered = false
+                            lastScannedIsbn = ""
+                            bookEditorViewModel.resetLookup()
+                        }
                         else -> Unit
                     }
                 }
@@ -145,7 +155,12 @@ class BarcodeScanActivity : AppCompatActivity() {
 
     private fun firstIsbn(barcodes: List<Barcode>): String? =
         barcodes.firstNotNullOfOrNull { b ->
-            b.rawValue?.takeIf { it.length == 13 && it.all(Char::isDigit) }
+            val raw = b.rawValue?.trim().orEmpty()
+            if (raw.isEmpty()) return@firstNotNullOfOrNull null
+            // Barcode may contain hyphens/spaces or ISBN-10; normalize to ISBN-13.
+            // Also tolerate Yandex share URLs in QR codes — skip them here.
+            if (raw.startsWith("http", ignoreCase = true)) return@firstNotNullOfOrNull null
+            com.antisdvg.util.IsbnUtils.normalize(raw).takeIf { it.isNotEmpty() }
         }
 
     /** Looks the scanned ISBN up so the form can auto-fill. */

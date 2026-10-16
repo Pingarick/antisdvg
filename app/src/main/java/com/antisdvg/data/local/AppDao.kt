@@ -11,6 +11,7 @@ import com.antisdvg.data.model.BlockedApp
 import com.antisdvg.data.model.Book
 import com.antisdvg.data.model.DayReading
 import com.antisdvg.data.model.EmergencyTokens
+import com.antisdvg.data.model.FocusSession
 import com.antisdvg.data.model.ReadingSession
 import com.antisdvg.data.model.UserStats
 import com.antisdvg.data.model.Wallet
@@ -28,7 +29,7 @@ interface AppDao {
     fun observeBook(id: Long): Flow<Book?>
 
     @Query("SELECT * FROM books WHERE status = :status LIMIT 1")
-    fun findActive(status: String = BookStatus.ACTIVE): Book?
+    suspend fun findActive(status: String = BookStatus.ACTIVE): Book?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBook(book: Book): Long
@@ -84,6 +85,16 @@ interface AppDao {
 
     @Query("SELECT COALESCE(SUM(pagesRead), 0) FROM reading_sessions WHERE createdAt >= :dayStart AND format = :format")
     suspend fun pagesByFormatSince(dayStart: Long, format: String): Int
+
+    // ---- Focus sessions ----
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertFocusSession(session: FocusSession): Long
+
+    @Query("SELECT COALESCE(SUM(durationMin), 0) FROM focus_sessions WHERE completed = 1")
+    suspend fun totalFocusMinutes(): Int
+
+    @Query("SELECT COUNT(*) FROM focus_sessions WHERE completed = 1")
+    suspend fun countFocusSessions(): Int
 
     // ---- Wallet (fun time) ----
     @Query("SELECT * FROM wallet WHERE id = :row")

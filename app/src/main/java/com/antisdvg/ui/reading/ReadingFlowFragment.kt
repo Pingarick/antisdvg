@@ -7,12 +7,18 @@ import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.antisdvg.R
 import com.antisdvg.data.model.Book
 import com.antisdvg.data.model.progressPercent
 import com.antisdvg.databinding.FragmentReadingBinding
 import com.antisdvg.ui.AppViewModelFactory
+import com.antisdvg.ui.reading.ReadingMode
+import android.widget.RadioGroup
+import android.widget.RadioButton
+import android.widget.TextView
 import kotlinx.coroutines.launch
 
 /** Reading flow tab: confirm the pages read, retell, and get AI-verified. */
@@ -53,20 +59,55 @@ class ReadingFlowFragment : Fragment(R.layout.fragment_reading) {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val bookId = arguments?.getLong("bookId", -1L) ?: -1L
+        // Mode toggle listener
+        binding.modeToggleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+            when (checkedId) {
+                R.id.btn_mode_retell -> viewModel.setMode(ReadingMode.RETELL)
+                R.id.btn_mode_quiz -> viewModel.setMode(ReadingMode.QUIZ)
+            }
+        }
+
         binding.btnCheckProgress.setOnClickListener {
-            viewModel.verify(
-                startPageInput = binding.inputReadingStartEdit.text?.toString().orEmpty(),
-                endPageInput = binding.inputReadingEndEdit.text?.toString().orEmpty(),
-                userText = binding.inputRetellingEdit.text?.toString().orEmpty()
-            )
+            // In RETELL mode we send retelling text, in QUIZ mode we just trigger quiz generation
+            if (viewModel.state.value.mode == ReadingMode.RETELL) {
+                viewModel.verify(
+                    startPageInput = binding.inputReadingStartEdit.text?.toString().orEmpty(),
+                    endPageInput = binding.inputReadingEndEdit.text?.toString().orEmpty(),
+                    userText = binding.inputRetellingEdit.text?.toString().orEmpty(),
+                    quote = binding.inputQuoteEdit.text?.toString().orEmpty()
+                )
+            } else {
+                // Generate quiz
+                viewModel.verify(
+                    startPageInput = binding.inputReadingStartEdit.text?.toString().orEmpty(),
+                    endPageInput = binding.inputReadingEndEdit.text?.toString().orEmpty(),
+                    userText = ""
+                )
+            }
+        }
+        // Submit quiz answers button
+        binding.btnSubmitQuiz.setOnClickListener {
+            val start = binding.inputReadingStartEdit.text?.toString()?.toIntOrNull() ?: return@setOnClickListener
+            val end = binding.inputReadingEndEdit.text?.toString()?.toIntOrNull() ?: return@setOnClickListener
+            val answers = mutableListOf<Int>()
+            viewModel.state.value.quizQuestions.forEachIndexed { index, _ ->
+                val rg = binding.quizContainer.findViewWithTag<android.widget.RadioGroup>("quiz_rg_$index")
+                val checkedId = rg?.checkedRadioButtonId ?: -1
+                val selectedIdx = if (checkedId != -1) rg?.indexOfChild(rg.findViewById(checkedId)) ?: -1 else -1
+                answers.add(selectedIdx)
+            }
+            viewModel.submitQuizAnswers(start, end, answers)
         }
         binding.btnUseEmergency.setOnClickListener { onUseEmergencyClicked() }
 
         setupVoiceInput()
 
         viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             viewModel.state.collect { state ->
                 render(state)
+            }
             }
         }
 
@@ -95,6 +136,7 @@ class ReadingFlowFragment : Fragment(R.layout.fragment_reading) {
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             helper.onState.collect { state ->
                 when (state) {
                     is com.antisdvg.util.VoiceInputHelper.State.Listening,
@@ -110,22 +152,27 @@ class ReadingFlowFragment : Fragment(R.layout.fragment_reading) {
                     }
                 }
             }
+            }
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             helper.onPartialResult.collect { partial ->
                 val combined = if (baseRetellingText.isBlank()) partial else "$baseRetellingText $partial"
                 binding.inputRetellingEdit.setText(combined)
                 binding.inputRetellingEdit.setSelection(combined.length)
             }
+            }
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             helper.onResult.collect { final ->
                 val combined = if (baseRetellingText.isBlank()) final else "$baseRetellingText $final"
                 binding.inputRetellingEdit.setText(combined)
                 binding.inputRetellingEdit.setSelection(combined.length)
                 baseRetellingText = combined
+            }
             }
         }
     }

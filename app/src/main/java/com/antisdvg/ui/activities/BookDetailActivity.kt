@@ -8,7 +8,9 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import com.antisdvg.R
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.antisdvg.data.model.Book
 import com.antisdvg.data.model.BookFormat
 import com.antisdvg.databinding.ActivityBookDetailBinding
@@ -33,6 +35,8 @@ class BookDetailActivity : AppCompatActivity() {
     // Cover URL captured from the most recent successful lookup / scan; applied on save.
     private var pendingCover: String = ""
 
+    private var populatedBookId: Long? = null
+
     companion object {
         const val EXTRA_BOOK_ID = "extra_book_id"
     }
@@ -53,10 +57,21 @@ class BookDetailActivity : AppCompatActivity() {
         binding.btnDeleteBook.setOnClickListener { confirmDelete() }
 
         lifecycleScope.launch {
-            viewModel.book.collect { book -> if (book != null) populate(book) }
-        }
-        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    viewModel.book.collect { book ->
+                        if (book != null && populatedBookId != book.id) {
+                            populatedBookId = book.id
+                            populate(book)
+                        }
+                    }
+                }
+                launch {
             viewModel.lookupState.collect { state ->
+                val loading = state == IsbnLookupState.LOADING
+                binding.btnFindIsbn.isEnabled = !loading
+                binding.btnFindYandex.isEnabled = !loading
+                binding.btnSaveBook.isEnabled = !loading
                 when (state) {
                     IsbnLookupState.LOADING ->
                         if (yandexLookup) {
@@ -93,8 +108,10 @@ class BookDetailActivity : AppCompatActivity() {
                         if (yandexLookup) binding.btnFindYandex.text = getString(R.string.yandex_find)
                         else binding.btnFindIsbn.text = getString(R.string.isbn_find)
                 }
+                }
             }
         }
+    }
     }
 
     private fun doIsbnLookup() {
