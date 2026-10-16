@@ -19,8 +19,23 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.random.Random
 
-/** Reading palette of the built-in reader. */
-enum class ReaderTheme { PAPER, SEPIA, NIGHT }
+/**
+ * Reading palette of the built-in reader.
+ *
+ * The ordinal is stored in preferences, so new themes are only ever appended —
+ * reordering would silently repaint everyone's saved choice.
+ */
+enum class ReaderTheme { PAPER, SEPIA, NIGHT, BLACK }
+
+/** Typeface of the reader; [css] goes straight into the page style. */
+enum class ReaderFont(val css: String) {
+    SERIF("Georgia,'Noto Serif','Times New Roman',serif"),
+    SANS("'Roboto','Helvetica Neue',Arial,sans-serif"),
+    MONO("'Noto Sans Mono','Droid Sans Mono','Courier New',monospace")
+}
+
+/** PAGED turns pages sideways, SCROLL is the endless ribbon. */
+enum class ReaderMode { PAGED, SCROLL }
 
 data class ReaderUiState(
     val book: Book? = null,
@@ -32,7 +47,9 @@ data class ReaderUiState(
     /** Furthest progress reached during this session, 0..1. */
     val progress: Double = 0.0,
     val theme: ReaderTheme = ReaderTheme.PAPER,
-    val fontPercent: Int = 100
+    val fontPercent: Int = 100,
+    val font: ReaderFont = ReaderFont.SERIF,
+    val mode: ReaderMode = ReaderMode.PAGED
 )
 
 /** What the session actually produced, shown before the light test. */
@@ -67,13 +84,22 @@ class ReaderViewModel(
     private var sessionStartProgress = 0.0
     private var questions: List<QuizQuestion> = emptyList()
 
+    /** Last progress written to the database, so autosave never writes twice. */
+    private var lastPersisted = -1.0
+
     /**
      * Set when the user ends the session: the reward must reflect reading time
      * only, not the seconds spent staring at the summary and the test.
      */
     private var frozen: SessionSummary? = null
 
-    fun load(bookId: Long, theme: ReaderTheme, fontPercent: Int) {
+    fun load(
+        bookId: Long,
+        theme: ReaderTheme,
+        fontPercent: Int,
+        font: ReaderFont,
+        mode: ReaderMode
+    ) {
         viewModelScope.launch {
             val book = repo.getBook(bookId)
             if (book == null || book.filePath.isBlank()) {
@@ -81,12 +107,15 @@ class ReaderViewModel(
                 return@launch
             }
             sessionStartProgress = book.progress.coerceIn(0.0, 1.0)
+            lastPersisted = sessionStartProgress
             _state.update {
                 it.copy(
                     book = book,
                     progress = sessionStartProgress,
                     theme = theme,
-                    fontPercent = fontPercent
+                    fontPercent = fontPercent,
+                    font = font,
+                    mode = mode
                 )
             }
             val parsed = withContext(Dispatchers.IO) {
@@ -134,9 +163,26 @@ class ReaderViewModel(
         when (_state.value.theme) {
             ReaderTheme.PAPER -> ReaderTheme.SEPIA
             ReaderTheme.SEPIA -> ReaderTheme.NIGHT
-            ReaderTheme.NIGHT -> ReaderTheme.PAPER
+            ReaderTheme.NIGHT -> ReaderTheme.BLACK
+            ReaderTheme.BLACK -> ReaderTheme.PAPER
         }
     )
+
+    /** Serif -> sans -> mono, then back. */
+    fun cycleFont() = _state.update {
+        it.copy(
+            font = when (it.font) {
+                ReaderFont.SERIF -> ReaderFont.SANS
+                ReaderFont.SANS -> ReaderFont.MONO
+                ReaderFont.MONO -> ReaderFont.SERIF
+            }
+        )
+    }
+
+    /** Pages sideways <-> endless ribbon. */
+    fun cycleMode() = _state.update {
+        it.copy(mode = if (it.mode == ReaderMode.PAGED) ReaderMode.SCROLL else ReaderMode.PAGED)
+    }
 
     fun adjustFont(deltaPercent: Int) {
         _state.update {
@@ -148,6 +194,9 @@ class ReaderViewModel(
     fun persistProgress() {
         val state = _state.value
         val book = state.book ?: return
+        // Writing on every tick would be silly; a real move is worth a save.
+        if (Math.abs(state.progress - lastPersisted) < 0.005) return
+        lastPersisted = state.progress
         viewModelScope.launch {
             repo.saveReaderProgress(book.id, state.progress, ReaderProgress.pageAt(state.progress, book.totalPages))
         }

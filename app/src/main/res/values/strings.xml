@@ -266,6 +266,18 @@
     <!-- Built-in reader -->
     <string name="reader_close">Закрыть</string>
     <string name="reader_theme">Сменить тему</string>
+    <string name="reader_theme_paper">Светлая тема</string>
+    <string name="reader_theme_sepia">Сепия</string>
+    <string name="reader_theme_night">Ночная тема</string>
+    <string name="reader_theme_black">Чёрная тема</string>
+    <string name="reader_font_family">Сменить шрифт</string>
+    <string name="reader_font_serif">Шрифт с засечками</string>
+    <string name="reader_font_sans">Шрифт без засечек</string>
+    <string name="reader_font_mono">Моноширинный шрифт</string>
+    <string name="reader_font_glyph">Aa</string>
+    <string name="reader_mode">Как листать</string>
+    <string name="reader_mode_paged">Листать вправо, по страницам</string>
+    <string name="reader_mode_scroll">Лента, прокрутка вниз</string>
     <string name="reader_font_smaller">Уменьшить шрифт</string>
     <string name="reader_font_bigger">Увеличить шрифт</string>
     <string name="reader_opening">Открываю книгу…</string>
@@ -288,7 +300,7 @@
 
     <!-- Book import -->
     <string name="reader_import">Импорт</string>
-    <string name="reader_import_unsupported">Поддерживаются только FB2 и TXT.</string>
+    <string name="reader_import_unsupported">Поддерживаются FB2, TXT и ZIP с FB2.</string>
     <string name="reader_import_failed">Не удалось импортировать книгу.</string>
     <string name="reader_import_done">Книга «%1$s» добавлена</string>
 </resources>

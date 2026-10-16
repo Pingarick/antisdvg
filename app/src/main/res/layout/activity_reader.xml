@@ -59,6 +59,31 @@
             android:textSize="18sp" />
 
         <TextView
+            android:id="@+id/reader_font"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/reader_font_family"
+            android:fontFamily="serif"
+            android:padding="8dp"
+            android:text="@string/reader_font_glyph"
+            android:textColor="@color/text_secondary"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/reader_mode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/reader_mode"
+            android:padding="8dp"
+            android:text="⇄"
+            android:textColor="@color/text_secondary"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <TextView
             android:id="@+id/reader_font_minus"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
