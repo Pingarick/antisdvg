@@ -45,10 +45,18 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         binding.homeContinueCard.setOnClickListener {
             val book = viewModel.state.value.activeBook
             if (book != null) {
-                findNavController().navigate(
-                    R.id.nav_reading,
-                    Bundle().apply { putLong("bookId", book.id) }
-                )
+                if (book.filePath.isNotBlank()) {
+                    // Electronic books continue in the built-in reader.
+                    startActivity(
+                        android.content.Intent(requireContext(), com.antisdvg.ui.reader.ReaderActivity::class.java)
+                            .putExtra(com.antisdvg.ui.reader.ReaderActivity.EXTRA_BOOK_ID, book.id)
+                    )
+                } else {
+                    findNavController().navigate(
+                        R.id.nav_reading,
+                        Bundle().apply { putLong("bookId", book.id) }
+                    )
+                }
             }
         }
 

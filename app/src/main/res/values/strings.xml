@@ -282,6 +282,7 @@
     <string name="reader_take_test">Пройти тест</string>
     <string name="reader_quiz_title">Проверка чтения</string>
     <string name="reader_check">Проверить</string>
+    <string name="reader_retry">Ещё попытка</string>
     <string name="reader_quiz_pass">Верно %1$d из %2$d. +%3$d мин в кошелёк!</string>
     <string name="reader_quiz_fail">Верно %1$d из %2$d. Минуты не начислены — вернись и перечитай это место.</string>
 

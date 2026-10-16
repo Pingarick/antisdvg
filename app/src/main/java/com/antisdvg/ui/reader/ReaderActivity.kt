@@ -2,12 +2,14 @@ package com.antisdvg.ui.reader
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.View
+import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -17,9 +19,11 @@ import android.widget.RadioGroup
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -53,10 +57,17 @@ class ReaderActivity : AppCompatActivity() {
 
     private val uiPrefs by lazy { getSharedPreferences("reader_ui", Context.MODE_PRIVATE) }
     private val handler = Handler(Looper.getMainLooper())
+
+    /** Touched from the WebView JS-bridge thread, read from the main thread. */
+    @Volatile
     private var lastActivityMs = 0L
+
     private var htmlInjected = false
     private var lastTheme = ReaderTheme.PAPER
     private var lastFont = 100
+    private var savedTheme = -1
+    private var savedFont = -1
+    private var attempts = 0
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -75,6 +86,9 @@ class ReaderActivity : AppCompatActivity() {
         binding = ActivityReaderBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Reading should not be interrupted by the screen timeout.
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
         val bookId = intent.getLongExtra(EXTRA_BOOK_ID, -1L)
         viewModel.load(
             bookId = bookId,
@@ -87,12 +101,11 @@ class ReaderActivity : AppCompatActivity() {
         binding.readerWeb.addJavascriptInterface(Bridge(), "ReaderBridge")
         binding.readerWeb.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
-                restorePosition()
+                restorePositionSoon()
             }
         }
-        binding.readerWeb.setOnTouchListener { v, event ->
+        binding.readerWeb.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_DOWN) lastActivityMs = SystemClock.elapsedRealtime()
-            v.onTouchEvent(event)
             false
         }
 
@@ -103,6 +116,10 @@ class ReaderActivity : AppCompatActivity() {
         binding.readerFontPlus.setOnClickListener { viewModel.adjustFont(10) }
 
         binding.readerTimer.visibility = View.INVISIBLE
+
+        // The system back gesture means the same as ✕: keep the position, offer
+        // to close the session properly instead of silently dropping it.
+        onBackPressedDispatcher.addCallback(this) { confirmExit() }
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -139,12 +156,14 @@ class ReaderActivity : AppCompatActivity() {
             View.GONE
         }
         binding.readerStatus.text = state.error ?: getString(R.string.reader_opening)
+        binding.readerFinish.isEnabled = state.error == null && !state.loading
 
         if (state.html.isNotEmpty()) {
             if (!htmlInjected) {
                 htmlInjected = true
                 lastTheme = state.theme
                 lastFont = state.fontPercent
+                applyChrome(state.theme)
                 binding.readerWeb.loadDataWithBaseURL(
                     null,
                     buildHtml(state.html, state.theme, state.fontPercent),
@@ -152,10 +171,17 @@ class ReaderActivity : AppCompatActivity() {
                     "utf-8",
                     null
                 )
-            } else if (state.theme != lastTheme || state.fontPercent != lastFont) {
-                lastTheme = state.theme
-                lastFont = state.fontPercent
-                applyTypography(state.theme, state.fontPercent)
+            } else {
+                val themeChanged = state.theme != lastTheme
+                val fontChanged = state.fontPercent != lastFont
+                if (themeChanged) {
+                    lastTheme = state.theme
+                    applyChrome(state.theme)
+                }
+                if (themeChanged || fontChanged) {
+                    lastFont = state.fontPercent
+                    applyTypography(state.theme, state.fontPercent)
+                }
             }
         }
 
@@ -167,16 +193,32 @@ class ReaderActivity : AppCompatActivity() {
             viewModel.pageAt(state.progress),
             viewModel.totalPages()
         )
-        uiPrefs.edit()
-            .putInt(KEY_THEME, state.theme.ordinal)
-            .putInt(KEY_FONT, state.fontPercent)
-            .apply()
+
+        // Preferences change rarely — never rewrite them once per timer tick.
+        if (state.theme.ordinal != savedTheme || state.fontPercent != savedFont) {
+            savedTheme = state.theme.ordinal
+            savedFont = state.fontPercent
+            uiPrefs.edit()
+                .putInt(KEY_THEME, state.theme.ordinal)
+                .putInt(KEY_FONT, state.fontPercent)
+                .apply()
+        }
     }
 
     private fun renderTimer() {
         val seconds = viewModel.state.value.activeSeconds
         binding.readerTimer.visibility = View.VISIBLE
         binding.readerTimer.text = String.format("%d:%02d", seconds / 60, seconds % 60)
+    }
+
+    /**
+     * The bookmark is restored twice: at load time and a moment later, because
+     * late layout (fonts, long chapters) can still shift the document height.
+     */
+    private fun restorePositionSoon() {
+        restorePosition()
+        handler.postDelayed({ restorePosition() }, 350L)
+        handler.postDelayed({ restorePosition() }, 900L)
     }
 
     private fun restorePosition() {
@@ -188,6 +230,7 @@ class ReaderActivity : AppCompatActivity() {
         )
     }
 
+    /** Repaints the HTML page after a theme or font change, keeping the place. */
     private fun applyTypography(theme: ReaderTheme, fontPercent: Int) {
         val palette = paletteOf(theme)
         val size = 16 * fontPercent / 100
@@ -196,6 +239,33 @@ class ReaderActivity : AppCompatActivity() {
                 "b.style.color='${palette.fg}';b.style.fontSize='${size}px';})();",
             null
         )
+        handler.postDelayed({ restorePosition() }, 80L)
+    }
+
+    /**
+     * The reader is the only screen the user stares at for an hour: in the night
+     * theme the surrounding chrome must go dark with the page, not stay white.
+     */
+    private fun applyChrome(theme: ReaderTheme) {
+        val palette = paletteOf(theme)
+        val bg = Color.parseColor(palette.bg)
+        val fg = Color.parseColor(palette.fg)
+        val muted = Color.parseColor(palette.muted)
+        binding.readerRoot.setBackgroundColor(bg)
+        binding.readerBar.setBackgroundColor(bg)
+        binding.readerBottom.setBackgroundColor(bg)
+        binding.readerWeb.setBackgroundColor(bg)
+        binding.readerTitle.setTextColor(fg)
+        binding.readerPercent.setTextColor(muted)
+        binding.readerTheme.setTextColor(muted)
+        binding.readerFontMinus.setTextColor(muted)
+        binding.readerFontPlus.setTextColor(muted)
+        binding.readerClose.setTextColor(muted)
+        binding.readerStatus.setTextColor(muted)
+        window.statusBarColor = bg
+        window.navigationBarColor = bg
+        WindowCompat.getInsetsController(window, window.decorView)
+            .isAppearanceLightStatusBars = theme != ReaderTheme.NIGHT
     }
 
     // ---- HTML / CSS ----
@@ -281,7 +351,6 @@ class ReaderActivity : AppCompatActivity() {
 
     private fun onFinishClicked() {
         viewModel.persistProgress()
-        val summary = viewModel.summary()
         if (viewModel.isTooShort()) {
             AlertDialog.Builder(this)
                 .setTitle(R.string.reader_too_short_title)
@@ -291,17 +360,20 @@ class ReaderActivity : AppCompatActivity() {
                 .show()
             return
         }
+        viewModel.freezeSession()
+        val summary = viewModel.summary()
         AlertDialog.Builder(this)
             .setTitle(R.string.reader_summary_title)
             .setMessage(
                 getString(R.string.reader_summary, summary.pagesRead, summary.minutesRead, viewModel.totalPages())
             )
             .setPositiveButton(R.string.reader_take_test) { _, _ -> startQuiz() }
-            .setNegativeButton(R.string.reader_stay, null)
+            .setNegativeButton(R.string.reader_stay) { _, _ -> viewModel.unfreeze() }
             .show()
     }
 
     private fun startQuiz() {
+        attempts++
         val questions = viewModel.buildQuiz()
         if (questions.isEmpty()) {
             // Text too small to build an honest test: gate on real reading time only.
@@ -338,7 +410,7 @@ class ReaderActivity : AppCompatActivity() {
             .setTitle(R.string.reader_quiz_title)
             .setView(scroll)
             .setPositiveButton(R.string.reader_check, null)
-            .setNegativeButton(R.string.reader_stay, null)
+            .setNegativeButton(R.string.reader_stay) { _, _ -> backToReading() }
             .create()
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
@@ -363,14 +435,23 @@ class ReaderActivity : AppCompatActivity() {
                 Toast.LENGTH_LONG
             ).show()
             finish()
-        } else {
-            AlertDialog.Builder(this)
-                .setTitle(R.string.reader_quiz_title)
-                .setMessage(getString(R.string.reader_quiz_fail, outcome.correct, questionCount))
-                .setPositiveButton(R.string.reader_stay, null)
-                .setNegativeButton(R.string.reader_exit) { _, _ -> finish() }
-                .show()
+            return
         }
+        val canRetry = attempts < MAX_ATTEMPTS
+        AlertDialog.Builder(this)
+            .setTitle(R.string.reader_quiz_title)
+            .setMessage(getString(R.string.reader_quiz_fail, outcome.correct, questionCount))
+            .setPositiveButton(if (canRetry) R.string.reader_retry else R.string.reader_stay) { _, _ ->
+                if (canRetry) startQuiz() else backToReading()
+            }
+            .setNegativeButton(R.string.reader_exit) { _, _ -> finish() }
+            .show()
+    }
+
+    /** The user goes back to the book: the session continues counting honestly. */
+    private fun backToReading() {
+        attempts = 0
+        viewModel.unfreeze()
     }
 
     companion object {
@@ -380,5 +461,8 @@ class ReaderActivity : AppCompatActivity() {
 
         /** Reading a full screen without touching it must not pause the timer. */
         private const val IDLE_TIMEOUT_MS = 180_000L
+
+        /** One fair second chance after a failed test, then the reading stands. */
+        private const val MAX_ATTEMPTS = 2
     }
 }

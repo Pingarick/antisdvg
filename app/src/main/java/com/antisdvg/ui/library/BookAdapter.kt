@@ -106,7 +106,7 @@ class BookAdapter(
             val progress = book.progressPercent
             binding.bookProgress.progress = progress
 
-            binding.bookProgressText.text = when {
+            val progressText = when {
                 finished -> binding.root.context.getString(R.string.finished)
                 book.totalPages <= 0 -> binding.root.context.getString(R.string.not_started)
                 else -> binding.root.context.getString(
@@ -116,6 +116,9 @@ class BookAdapter(
                     progress
                 )
             }
+            // 📱 marks a book that opens in the built-in reader.
+            binding.bookProgressText.text =
+                if (book.filePath.isNotBlank()) "📱 $progressText" else progressText
         }
     }
 

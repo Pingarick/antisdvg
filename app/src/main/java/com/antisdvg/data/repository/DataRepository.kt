@@ -14,6 +14,7 @@ import com.antisdvg.data.model.FocusSession
 import com.antisdvg.data.model.ReadingSession
 import com.antisdvg.data.model.StatsView
 import com.antisdvg.data.model.UserStats
+import java.io.File
 import com.antisdvg.data.model.Wallet
 import com.antisdvg.util.PreferencesManager
 import com.antisdvg.util.TimeCalculator
@@ -62,13 +63,39 @@ class DataRepository(
     }
 
     /**
+     * Makes [book] the reader's current book ("continue reading" on the home
+     * screen), demoting whichever book was active before.
+     */
+    suspend fun markActive(book: Book) {
+        val current = dao.findActive()
+        if (current != null && current.id != book.id) {
+            dao.updateBook(current.copy(status = BookStatus.IN_PROGRESS))
+        }
+        if (book.status != BookStatus.ACTIVE) {
+            dao.updateBook(book.copy(status = BookStatus.ACTIVE))
+        }
+    }
+
+    /**
      * Removes a book and its reading sessions permanently. The wallet,
-     * tokens, and lifetime stats are left untouched.
+     * tokens, and lifetime stats are left untouched. An imported e-book also
+     * takes its file and extracted cover with it, so nothing rots in storage.
      */
     @Transaction
     suspend fun deleteBook(bookId: Long) {
+        val book = dao.getBook(bookId)
         dao.deleteSessionsForBook(bookId)
         dao.deleteBook(bookId)
+        book?.let { deleteBookFiles(it) }
+    }
+
+    private fun deleteBookFiles(book: Book) {
+        runCatching {
+            if (book.filePath.isNotBlank()) File(book.filePath).delete()
+            book.coverUrl.removePrefix("file://")
+                .takeIf { it.isNotBlank() && book.coverUrl.startsWith("file://") }
+                ?.let { File(it).delete() }
+        }
     }
 
     /**

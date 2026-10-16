@@ -55,4 +55,28 @@ class ClozeQuizTest {
             ClozeQuiz.generate(text, 3, Random(42))
         )
     }
+
+    @Test
+    fun answer_reconstructsTheOriginalSentence() {
+        val quiz = ClozeQuiz.generate(text, 3, Random(11))
+        assertFalse(quiz.isEmpty())
+        val flat = text.replace(Regex("\\s+"), " ").trim()
+        quiz.forEach { q ->
+            val masked = q.question.substringAfter('«').substringBeforeLast('»')
+            val rebuilt = masked.replace("______", q.options[q.correctIndex])
+                .replace(Regex("\\s+"), " ")
+                .trim()
+            assertTrue("Answer does not rebuild the read line: $rebuilt", flat.contains(rebuilt))
+        }
+    }
+
+    @Test
+    fun mask_keepsSentencePunctuation() {
+        val quiz = ClozeQuiz.generate(text, 3, Random(5))
+        quiz.forEach { q ->
+            val masked = q.question.substringAfter('«').substringBeforeLast('»')
+            // The last word of the line keeps its final period/comma after masking.
+            assertTrue(masked.trim().last().let { it == '.' || it == ',' || it.isLetter() })
+        }
+    }
 }

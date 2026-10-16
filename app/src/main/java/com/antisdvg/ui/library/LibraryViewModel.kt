@@ -83,7 +83,7 @@ class LibraryViewModel(
             val book = Book(
                 title = imported.title,
                 author = imported.author,
-                coverUrl = imported.coverPath,
+                coverUrl = if (imported.coverPath.isBlank()) "" else "file://${imported.coverPath}",
                 totalPages = imported.estimatedPages,
                 currentPage = 0,
                 status = BookStatus.IN_PROGRESS,

@@ -60,7 +60,7 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
         binding.fabAddBook.setOnClickListener { openBookEditor(null) }
         binding.emptyAddBtn.setOnClickListener { openBookEditor(null) }
         binding.importBookBtn.setOnClickListener {
-            importLauncher.launch(arrayOf("application/octet-stream", "text/plain", "text/xml"))
+            importLauncher.launch(arrayOf("*/*"))
         }
 
         viewLifecycleOwner.lifecycleScope.launch {

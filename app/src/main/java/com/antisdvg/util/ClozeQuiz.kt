@@ -60,7 +60,16 @@ object ClozeQuiz {
         if (distractors.size < 3) return null
 
         val options = (listOf(target) + distractors).shuffled(rnd)
-        val display = words.toMutableList().also { it[targetIndex] = MASK }.joinToString(" ")
+        // Mask only the letters of the word, keeping its punctuation, so the
+        // shown sentence still reads like the original line.
+        val raw = words[targetIndex]
+        val coreIndex = raw.indexOf(target)
+        val maskedWord = if (coreIndex >= 0) {
+            raw.replaceRange(coreIndex, coreIndex + target.length, MASK)
+        } else {
+            MASK
+        }
+        val display = words.toMutableList().also { it[targetIndex] = maskedWord }.joinToString(" ")
         return QuizQuestion(
             question = "Вставь пропущенное слово:\n«$display»",
             options = options,

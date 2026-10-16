@@ -67,6 +67,12 @@ class ReaderViewModel(
     private var sessionStartProgress = 0.0
     private var questions: List<QuizQuestion> = emptyList()
 
+    /**
+     * Set when the user ends the session: the reward must reflect reading time
+     * only, not the seconds spent staring at the summary and the test.
+     */
+    private var frozen: SessionSummary? = null
+
     fun load(bookId: Long, theme: ReaderTheme, fontPercent: Int) {
         viewModelScope.launch {
             val book = repo.getBook(bookId)
@@ -96,12 +102,25 @@ class ReaderViewModel(
             }
             plainText = parsed.plainText
             _state.update { it.copy(html = parsed.html, loading = false) }
+            // Opening a book in the reader makes it the current one on the home screen.
+            repo.markActive(book)
         }
     }
 
     /** One honest reading second: only the Activity decides when to call this. */
     fun onTick() {
+        if (frozen != null) return
         _state.update { it.copy(activeSeconds = it.activeSeconds + 1) }
+    }
+
+    /** The user ended the session: lock in what was read before any dialog. */
+    fun freezeSession() {
+        if (frozen == null) frozen = computeSummary()
+    }
+
+    /** Back to reading without ending the session (dialog cancelled). */
+    fun unfreeze() {
+        frozen = null
     }
 
     fun noteProgress(progress: Double) {
@@ -139,7 +158,9 @@ class ReaderViewModel(
     /** 1-based page equivalent of a 0..1 progress on the current book. */
     fun pageAt(progress: Double): Int = ReaderProgress.pageAt(progress, totalPages())
 
-    fun summary(): SessionSummary {
+    fun summary(): SessionSummary = frozen ?: computeSummary()
+
+    private fun computeSummary(): SessionSummary {
         val state = _state.value
         val total = totalPages()
         val from = ReaderProgress.pageAt(sessionStartProgress, total)

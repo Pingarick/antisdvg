@@ -53,7 +53,7 @@ object BookText {
 
         var coverUri = ""
         val coverHref = titleInfo?.firstTag("coverpage")
-            ?.firstTag("image")?.getAttribute("href")?.removePrefix("#")
+            ?.firstTag("image")?.hrefAttr()?.removePrefix("#")
         if (!coverHref.isNullOrBlank()) {
             val binary = root.getTags("binary").firstOrNull { it.getAttribute("id") == coverHref }
             if (binary != null) {
@@ -77,7 +77,7 @@ object BookText {
             strict.decode(ByteBuffer.wrap(bytes)).toString()
         } catch (_: Exception) {
             String(bytes, Charset.forName("windows-1251"))
-        }
+        }.removePrefix("\uFEFF")
         val paragraphs = raw.split(Regex("\\r?\\n[ \\t]*\\r?\\n"))
             .map { it.trim() }
             .filter { it.isNotEmpty() }
@@ -130,6 +130,21 @@ object BookText {
 
     private fun esc(s: String): String =
         s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    /**
+     * FB2 refers to embedded images with a namespaced attribute (`xlink:href`,
+     * or `l:href` in the wild). With namespace processing disabled the qualified
+     * name is kept literal, so match on the local name instead of "href".
+     */
+    private fun Element.hrefAttr(): String {
+        for (i in 0 until attributes.length) {
+            val name = attributes.item(i).nodeName
+            if (name == "href" || name.endsWith(":href")) {
+                return attributes.item(i).nodeValue.orEmpty()
+            }
+        }
+        return ""
+    }
 
     private fun Element.firstTag(name: String): Element? {
         val list = getElementsByTagName(name)
