@@ -263,4 +263,31 @@
     <string name="home_week_section">Последние 7 дней</string>
     <string name="home_add_first_book">Добавить первую книгу</string>
     <string name="home_add_book_hint">Начни практику: добавь книгу, читай страницы и зарабатывай время на отдых</string>
+    <!-- Built-in reader -->
+    <string name="reader_close">Закрыть</string>
+    <string name="reader_theme">Сменить тему</string>
+    <string name="reader_font_smaller">Уменьшить шрифт</string>
+    <string name="reader_font_bigger">Увеличить шрифт</string>
+    <string name="reader_opening">Открываю книгу…</string>
+    <string name="reader_position">%1$d%% · стр. %2$d из %3$d</string>
+    <string name="reader_finish">Завершить</string>
+    <string name="reader_stay">Остаться</string>
+    <string name="reader_exit">Выйти</string>
+    <string name="reader_exit_title">Закончить чтение?</string>
+    <string name="reader_exit_message">Позиция сохранится. Завершить сессию и пройти проверку?</string>
+    <string name="reader_too_short_title">Пока мало</string>
+    <string name="reader_too_short">Меньше минуты чтения — начислять нечего. Почитай подольше.</string>
+    <string name="reader_summary_title">Итог чтения</string>
+    <string name="reader_summary">Прочитано стр. %1$d за %2$d мин.\nВсего в книге ~%3$d стр.\n\nПройти лёгкий тест по прочитанному и получить минуты?</string>
+    <string name="reader_take_test">Пройти тест</string>
+    <string name="reader_quiz_title">Проверка чтения</string>
+    <string name="reader_check">Проверить</string>
+    <string name="reader_quiz_pass">Верно %1$d из %2$d. +%3$d мин в кошелёк!</string>
+    <string name="reader_quiz_fail">Верно %1$d из %2$d. Минуты не начислены — вернись и перечитай это место.</string>
+
+    <!-- Book import -->
+    <string name="reader_import">Импорт</string>
+    <string name="reader_import_unsupported">Поддерживаются только FB2 и TXT.</string>
+    <string name="reader_import_failed">Не удалось импортировать книгу.</string>
+    <string name="reader_import_done">Книга «%1$s» добавлена</string>
 </resources>

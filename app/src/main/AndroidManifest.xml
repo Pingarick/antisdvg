@@ -73,6 +73,14 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.AntiSvdg" />
 
+        <!-- Built-in reader for imported FB2/TXT books -->
+        <activity
+            android:name=".ui.reader.ReaderActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.AntiSvdg" />
+
         <!-- Accessibility Service that blocks distracting apps -->
         <service
             android:name=".service.BlockerService"

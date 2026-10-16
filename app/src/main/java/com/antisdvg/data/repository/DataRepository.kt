@@ -38,6 +38,22 @@ class DataRepository(
     suspend fun getActiveBook(): Book? = dao.findActive(BookStatus.ACTIVE)
     suspend fun addBook(book: Book): Long = dao.insertBook(book)
     suspend fun updateBook(book: Book) = dao.updateBook(book)
+    suspend fun getBook(id: Long): Book? = dao.getBook(id)
+
+    /**
+     * Persists the built-in reader position without awarding anything: called
+     * while reading so a closed app remembers where the reader stopped.
+     * Progress never moves backwards and the page counter only grows.
+     */
+    suspend fun saveReaderProgress(bookId: Long, progress: Double, currentPage: Int) {
+        val book = dao.getBook(bookId) ?: return
+        dao.updateBook(
+            book.copy(
+                progress = maxOf(book.progress, progress.coerceIn(0.0, 1.0)),
+                currentPage = maxOf(book.currentPage, currentPage)
+            )
+        )
+    }
 
     /** Attaches a cover-image URL to a book (empty clears it). */
     suspend fun setBookCover(bookId: Long, coverUrl: String) {

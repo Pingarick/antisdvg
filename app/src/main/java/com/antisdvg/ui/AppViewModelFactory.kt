@@ -29,7 +29,7 @@ class AppViewModelFactory(
             modelClass == com.antisdvg.ui.home.HomeViewModel::class.java ->
                 com.antisdvg.ui.home.HomeViewModel(repo)
             modelClass == com.antisdvg.ui.library.LibraryViewModel::class.java ->
-                com.antisdvg.ui.library.LibraryViewModel(repo)
+                com.antisdvg.ui.library.LibraryViewModel(repo, app)
             modelClass == com.antisdvg.ui.reading.ReadingViewModel::class.java ->
                 com.antisdvg.ui.reading.ReadingViewModel(repo, ai)
             modelClass == com.antisdvg.ui.stats.StatsViewModel::class.java ->
