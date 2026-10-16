@@ -28,7 +28,7 @@ import com.antisdvg.data.model.Wallet
         AppSettings::class,
         BlockedApp::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -45,7 +45,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "anti_sdvg.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9).build().also { INSTANCE = it }
             }
 
         /** v1→v2: add the paper/electronic [format] column to books, defaulting to paper. */
@@ -107,6 +107,15 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE app_settings ADD COLUMN goalTitle TEXT NOT NULL DEFAULT ''")
                 db.execSQL("ALTER TABLE app_settings ADD COLUMN goalTargetMin INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE app_settings ADD COLUMN goalSavedMin INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        /** v8→v9: built-in reader — imported file path/kind + furthest scroll progress. */
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE books ADD COLUMN filePath TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE books ADD COLUMN fileKind TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE books ADD COLUMN progress REAL NOT NULL DEFAULT 0")
             }
         }
     }

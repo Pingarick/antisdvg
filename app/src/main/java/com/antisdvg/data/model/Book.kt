@@ -24,7 +24,13 @@ data class Book(
     val coverEmoji: String = "📖",
     val startDate: Long = System.currentTimeMillis(),
     val finishDate: Long = 0L,
-    val format: String = BookFormat.PAPER
+    val format: String = BookFormat.PAPER,
+    /** Absolute path of an imported e-book file (FB2/TXT); empty for paper books. */
+    val filePath: String = "",
+    /** File kind of an imported book: "FB2", "TXT" or empty. */
+    val fileKind: String = "",
+    /** Furthest scroll progress reached in the built-in reader, 0..1. */
+    val progress: Double = 0.0
 )
 
 object BookStatus {
