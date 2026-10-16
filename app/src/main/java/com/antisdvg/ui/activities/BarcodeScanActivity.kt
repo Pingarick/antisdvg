@@ -47,6 +47,12 @@ class BarcodeScanActivity : AppCompatActivity() {
     private var lastScannedIsbn: String = ""
     private var delivered = false
 
+    // A failed lookup (e.g. Google blocked, Open Library has no RU edition) must
+    // not re-trigger on every frame: remember the ISBN and hold it in cooldown.
+    private var lastFailedIsbn: String = ""
+    private var retryAfter = 0L
+    private val retryCooldownMs = 5000L
+
     /** Barcode analysis must not share the main thread with rendering: on a weak
      * phone the main-thread analyzer starves and ML Kit stops getting frames. */
     private val analysisExecutor = Executors.newSingleThreadExecutor()
@@ -90,6 +96,8 @@ class BarcodeScanActivity : AppCompatActivity() {
                                 this@BarcodeScanActivity, R.string.isbn_error, Toast.LENGTH_SHORT
                             ).show()
                             // Allow retry instead of closing: reset for the next frame.
+                            lastFailedIsbn = lastScannedIsbn
+                            retryAfter = System.currentTimeMillis() + retryCooldownMs
                             delivered = false
                             lastScannedIsbn = ""
                             bookEditorViewModel.resetLookup()
@@ -98,6 +106,8 @@ class BarcodeScanActivity : AppCompatActivity() {
                             Toast.makeText(
                                 this@BarcodeScanActivity, R.string.isbn_not_found, Toast.LENGTH_SHORT
                             ).show()
+                            lastFailedIsbn = lastScannedIsbn
+                            retryAfter = System.currentTimeMillis() + retryCooldownMs
                             delivered = false
                             lastScannedIsbn = ""
                             bookEditorViewModel.resetLookup()
@@ -150,6 +160,13 @@ class BarcodeScanActivity : AppCompatActivity() {
                     val isbn = firstIsbn(barcodes)
                     if (isbn != null && !delivered) {
                         onIsbnScanned(isbn)
+                        return@addOnSuccessListener
+                    }
+                    // RU covers often carry a Yandex Books QR sticker instead of a
+                    // scannable ISBN story: same prefill path via the share-link parser.
+                    val shareUrl = firstYandexShare(barcodes)
+                    if (shareUrl != null && !delivered) {
+                        onYandexScanned(shareUrl)
                     }
                 }
                 ?.addOnFailureListener { e ->
@@ -182,11 +199,38 @@ class BarcodeScanActivity : AppCompatActivity() {
 
     /** Looks the scanned ISBN up so the form can auto-fill. */
     private fun onIsbnScanned(isbn: String) {
+        if (isbn == lastFailedIsbn && System.currentTimeMillis() < retryAfter) {
+            // Same barcode that just failed — wait it out instead of looping toasts.
+            return
+        }
         delivered = true
         lastScannedIsbn = isbn
         runOnUiThread {
             Toast.makeText(this, R.string.barcode_scanning, Toast.LENGTH_SHORT).show()
             bookEditorViewModel.lookupIsbn(isbn)
+        }
+    }
+
+    /** Picks a Yandex Books share URL out of scanned QR codes, if any. */
+    private fun firstYandexShare(barcodes: List<Barcode>): String? =
+        barcodes.firstNotNullOfOrNull { b ->
+            val raw = b.rawValue?.trim().orEmpty()
+            if (!raw.startsWith("http", ignoreCase = true)) return@firstNotNullOfOrNull null
+            val isYandex = raw.contains("yandex", ignoreCase = true) ||
+                raw.contains("ycl.by", ignoreCase = true)
+            if (isYandex) "https://" + raw.removePrefix("https://").removePrefix("http://") else null
+        }
+
+    /** Runs the Yandex share-link lookup for a QR sticker on the cover. */
+    private fun onYandexScanned(url: String) {
+        if (url == lastFailedIsbn && System.currentTimeMillis() < retryAfter) {
+            return
+        }
+        delivered = true
+        lastScannedIsbn = ""
+        runOnUiThread {
+            Toast.makeText(this, R.string.barcode_scanning, Toast.LENGTH_SHORT).show()
+            bookEditorViewModel.lookupYandex(url)
         }
     }
 
