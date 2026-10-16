@@ -26,6 +26,7 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.barcode.BarcodeScanner
 import com.google.mlkit.vision.common.InputImage
 import kotlinx.coroutines.launch
+import java.util.concurrent.Executors
 
 /**
  * Full-screen camera scanner that reads an ISBN barcode (EAN-13) off a book
@@ -45,6 +46,10 @@ class BarcodeScanActivity : AppCompatActivity() {
 
     private var lastScannedIsbn: String = ""
     private var delivered = false
+
+    /** Barcode analysis must not share the main thread with rendering: on a weak
+     * phone the main-thread analyzer starves and ML Kit stops getting frames. */
+    private val analysisExecutor = Executors.newSingleThreadExecutor()
 
     private val cameraPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -114,7 +119,7 @@ class BarcodeScanActivity : AppCompatActivity() {
             val analysis = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
-            analysis.setAnalyzer(ContextCompat.getMainExecutor(this)) { imageProxy ->
+            analysis.setAnalyzer(analysisExecutor) { imageProxy ->
                 processBarcode(imageProxy)
             }
 
@@ -147,6 +152,11 @@ class BarcodeScanActivity : AppCompatActivity() {
                         onIsbnScanned(isbn)
                     }
                 }
+                ?.addOnFailureListener { e ->
+                    // Previously swallowed silently — a broken recognizer looked like
+                    // "nothing scans". At least log every recognizer failure.
+                    android.util.Log.w("BarcodeScan", "ML Kit failed: ${e.javaClass.name}: ${e.message}")
+                }
                 ?.addOnCompleteListener { imageProxy.close() }
         } else {
             imageProxy.close()
@@ -160,7 +170,14 @@ class BarcodeScanActivity : AppCompatActivity() {
             // Barcode may contain hyphens/spaces or ISBN-10; normalize to ISBN-13.
             // Also tolerate Yandex share URLs in QR codes — skip them here.
             if (raw.startsWith("http", ignoreCase = true)) return@firstNotNullOfOrNull null
-            com.antisdvg.util.IsbnUtils.normalize(raw).takeIf { it.isNotEmpty() }
+            val normalized = com.antisdvg.util.IsbnUtils.normalize(raw)
+            if (normalized.isNotEmpty()) {
+                normalized
+            } else if (raw.length == 13 && raw.all(Char::isDigit)) {
+                // Lenient fallback: accept any 13-digit EAN even with a bad checksum —
+                // the lookup rejects garbage later, but the scan must not hang.
+                raw
+            } else null
         }
 
     /** Looks the scanned ISBN up so the form can auto-fill. */
@@ -188,6 +205,7 @@ class BarcodeScanActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         scanner?.close()
+        analysisExecutor.shutdown()
         super.onDestroy()
     }
 

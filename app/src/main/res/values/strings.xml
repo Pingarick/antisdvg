@@ -88,6 +88,7 @@
     <string name="home_goal_released">Копилка разбита: +%1$d мин в кошелёк</string>
     <string name="home_goal_released_simple">Копилка разбита, минуты вернулись в кошелёк</string>
     <string name="home_goal_done">Цель достигнута! 🎉</string>
+<string name="home_goal_need_more">На кошельке меньше 10 минут — нечего пока откладывать</string>
     <string name="widget_label">Анти-СДВГ: кошелёк</string>
     <string name="widget_desc">Минуты отдыха и огоньки без открытия приложения</string>
     <string name="widget_tokens">🔥 %1$d</string>

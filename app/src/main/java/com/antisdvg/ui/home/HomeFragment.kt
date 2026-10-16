@@ -57,7 +57,14 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         }
 
         binding.homeGoalDepositBtn.setOnClickListener {
-            viewModel.depositGoal()
+            val state = viewModel.state.value
+            when {
+                state.settings.goalTargetMin <= 0 -> showGoalDialog()
+                state.wallet.minutesRemaining < 10 -> android.widget.Toast.makeText(
+                    requireContext(), R.string.home_goal_need_more, android.widget.Toast.LENGTH_SHORT
+                ).show()
+                else -> viewModel.depositGoal()
+            }
         }
         binding.homeGoalEditBtn.setOnClickListener {
             showGoalDialog()
@@ -107,7 +114,8 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         binding.homeGoalBar.progress = if (hasGoal && target > 0) {
             (saved * 100 / target).coerceIn(0, 100)
         } else 0
-        binding.homeGoalDepositBtn.isEnabled = hasGoal && state.wallet.minutesRemaining >= 10
+        // Deposit button always responds: explains itself instead of being silently disabled.
+        binding.homeGoalDepositBtn.isEnabled = true
         binding.homeGoalBreakBtn.isVisible = hasGoal && saved > 0
         if (hasGoal && target > 0 && saved >= target) {
             binding.homeGoalProgressLabel.text = getString(R.string.home_goal_done)
