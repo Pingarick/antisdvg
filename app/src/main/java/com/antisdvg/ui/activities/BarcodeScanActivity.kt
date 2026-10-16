@@ -47,12 +47,6 @@ class BarcodeScanActivity : AppCompatActivity() {
     private var lastScannedIsbn: String = ""
     private var delivered = false
 
-    // A failed lookup (e.g. Google blocked, Open Library has no RU edition) must
-    // not re-trigger on every frame: remember the ISBN and hold it in cooldown.
-    private var lastFailedIsbn: String = ""
-    private var retryAfter = 0L
-    private val retryCooldownMs = 5000L
-
     /** Barcode analysis must not share the main thread with rendering: on a weak
      * phone the main-thread analyzer starves and ML Kit stops getting frames. */
     private val analysisExecutor = Executors.newSingleThreadExecutor()
@@ -95,22 +89,16 @@ class BarcodeScanActivity : AppCompatActivity() {
                             Toast.makeText(
                                 this@BarcodeScanActivity, R.string.isbn_error, Toast.LENGTH_SHORT
                             ).show()
-                            // Allow retry instead of closing: reset for the next frame.
-                            lastFailedIsbn = lastScannedIsbn
-                            retryAfter = System.currentTimeMillis() + retryCooldownMs
-                            delivered = false
-                            lastScannedIsbn = ""
-                            bookEditorViewModel.resetLookup()
+                            // Network died entirely: still hand the ISBN to the form.
+                            deliver(null)
                         }
                         IsbnLookupState.NOT_FOUND -> {
                             Toast.makeText(
                                 this@BarcodeScanActivity, R.string.isbn_not_found, Toast.LENGTH_SHORT
                             ).show()
-                            lastFailedIsbn = lastScannedIsbn
-                            retryAfter = System.currentTimeMillis() + retryCooldownMs
-                            delivered = false
-                            lastScannedIsbn = ""
-                            bookEditorViewModel.resetLookup()
+                            // Bases don't know this book (typical for RU editions):
+                            // open the form with the ISBN pre-filled for manual entry.
+                            deliver(null)
                         }
                         else -> Unit
                     }
@@ -199,10 +187,6 @@ class BarcodeScanActivity : AppCompatActivity() {
 
     /** Looks the scanned ISBN up so the form can auto-fill. */
     private fun onIsbnScanned(isbn: String) {
-        if (isbn == lastFailedIsbn && System.currentTimeMillis() < retryAfter) {
-            // Same barcode that just failed — wait it out instead of looping toasts.
-            return
-        }
         delivered = true
         lastScannedIsbn = isbn
         runOnUiThread {
@@ -223,9 +207,6 @@ class BarcodeScanActivity : AppCompatActivity() {
 
     /** Runs the Yandex share-link lookup for a QR sticker on the cover. */
     private fun onYandexScanned(url: String) {
-        if (url == lastFailedIsbn && System.currentTimeMillis() < retryAfter) {
-            return
-        }
         delivered = true
         lastScannedIsbn = ""
         runOnUiThread {

@@ -20,8 +20,8 @@
     <string name="editor_isbn">ISBN (необязательно)</string>
     <string name="isbn_find">Найти</string>
     <string name="isbn_looking_up">Ищу…</string>
-    <string name="isbn_not_found">Штрихкод прочитан, но такой ISBN не найден — заполни книгу вручную</string>
-    <string name="isbn_error">Не удалось проверить ISBN. Проверьте интернет.</string>
+    <string name="isbn_not_found">В базах книги нет — ISBN подставил в форму, остальное заполни вручную</string>
+    <string name="isbn_error">Сеть недоступна — ISBN подставил в форму, заполни вручную</string>
     <string name="editor_cover_preview">Обложка книги</string>
     <string name="editor_yandex_hint">Ссылка из Яндекс.Книг</string>
     <string name="yandex_find">Подтянуть</string>
