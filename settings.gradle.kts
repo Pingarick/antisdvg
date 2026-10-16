@@ -1,19 +1,21 @@
 pluginManagement {
     repositories {
         gradlePluginPortal()
-        maven("https://maven.aliyun.com/repository/google")
         google()
         mavenCentral()
+        // Fallback mirror (last resort, e.g. restricted regions).
+        maven("https://maven.aliyun.com/repository/google")
     }
 }
 
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        maven("https://maven.aliyun.com/repository/google")
-        maven("https://maven.aliyun.com/repository/public")
         google()
         mavenCentral()
+        // Fallback mirrors, kept last so official repos win.
+        maven("https://maven.aliyun.com/repository/google")
+        maven("https://maven.aliyun.com/repository/public")
     }
 }
 

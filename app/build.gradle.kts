@@ -1,3 +1,5 @@
+import java.time.LocalDate
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,8 +14,19 @@ android {
         applicationId = "com.antisdvg"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        // Build numbering: git commit count + date, so every APK is distinguishable.
+        // Installed app keeps working: versionCode only grows.
+        val gitCommits = try {
+            providers.exec {
+                commandLine("git", "rev-list", "--count", "HEAD")
+            }.standardOutput.asText.get().trim().toInt()
+        } catch (_: Exception) {
+            0
+        }
+        val buildDate = LocalDate.now().toString().replace("-", "")
+        versionCode = 100 + gitCommits
+        versionName = "1.0.0-$gitCommits ($buildDate)"
+        setProperty("archivesBaseName", "anti-sdvg-1.0.0-${gitCommits}-${buildDate}")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
