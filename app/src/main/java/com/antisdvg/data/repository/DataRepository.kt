@@ -7,6 +7,7 @@ import com.antisdvg.data.model.AppSettings
 import com.antisdvg.data.model.BlockedApp
 import com.antisdvg.data.model.Book
 import com.antisdvg.data.model.BookStatus
+import com.antisdvg.data.model.Bookmark
 import com.antisdvg.data.model.DayReading
 import com.antisdvg.data.model.DaySummary
 import com.antisdvg.data.model.EmergencyTokens
@@ -97,9 +98,30 @@ class DataRepository(
     suspend fun deleteBook(bookId: Long) {
         val book = dao.getBook(bookId)
         dao.deleteSessionsForBook(bookId)
+        dao.deleteBookmarksForBook(bookId)
         dao.deleteBook(bookId)
         book?.let { deleteBookFiles(it) }
     }
+
+    // ---- Bookmarks ----
+
+    /**
+     * Remembers a place in the book. The page number is kept for the label, the
+     * progress for the jump: pages move when the font does, the place does not.
+     */
+    suspend fun addBookmark(bookId: Long, progress: Double, page: Int, label: String = ""): Long =
+        dao.insertBookmark(
+            Bookmark(
+                bookId = bookId,
+                progress = progress.coerceIn(0.0, 1.0),
+                page = page,
+                label = label.trim()
+            )
+        )
+
+    suspend fun bookmarks(bookId: Long): List<Bookmark> = dao.bookmarks(bookId)
+
+    suspend fun deleteBookmark(id: Long) = dao.deleteBookmark(id)
 
     private fun deleteBookFiles(book: Book) {
         runCatching {

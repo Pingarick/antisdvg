@@ -1,6 +1,7 @@
 package com.antisdvg.util
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayInputStream
@@ -60,5 +61,34 @@ class BookTextTest {
     fun parse_dispatchesByKind() {
         val book = BookText.parse(ByteArrayInputStream(fb2.toByteArray(Charsets.UTF_8)), "FB2", "x")
         assertEquals("Мартин Иден", book.title)
+    }
+
+    @Test
+    fun txt_headingsBecomeChapters() {
+        val txt = "Глава первая\n\nОн вышел из дома и пошёл по улице, размышляя о своём будущем.\n\n" +
+            "Глава вторая\n\nУтро было холодным, и город казался серым и пустым, как всегда осенью."
+
+        val book = BookText.parseTxt(ByteArrayInputStream(txt.toByteArray(Charsets.UTF_8)), "Тест")
+
+        assertTrue(book.html.contains("<h2>Глава первая</h2>"))
+        assertTrue(book.html.contains("<h2>Глава вторая</h2>"))
+        assertTrue(book.html.contains("<p>Он вышел из дома"))
+    }
+
+    @Test
+    fun txt_onlyObviousLinesLookLikeHeadings() {
+        assertTrue(BookText.looksLikeHeading("Глава 3"))
+        assertTrue(BookText.looksLikeHeading("ЧАСТЬ ВТОРАЯ"))
+        assertTrue(BookText.looksLikeHeading("Пролог"))
+        assertTrue(BookText.looksLikeHeading("12"))
+        // Sentences are not headings, however short they are.
+        assertFalse(BookText.looksLikeHeading("Он ушёл домой."))
+        assertFalse(BookText.looksLikeHeading("И это было только начало, о котором он ещё не знал"))
+        // A long paragraph is a paragraph.
+        assertFalse(
+            BookText.looksLikeHeading(
+                "Мартин Иден был простым моряком и зарабатывал тяжёлым трудом на кораблях торгового флота"
+            )
+        )
     }
 }

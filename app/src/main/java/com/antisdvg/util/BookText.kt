@@ -84,11 +84,42 @@ object BookText {
         val html = StringBuilder()
         val text = StringBuilder()
         paragraphs.forEach { p ->
-            html.append("<p>").append(esc(p.replace(Regex("\\r?\\n"), "<br>"))).append("</p>")
+            // Plain text has no markup, so headings are guessed: otherwise an
+            // imported .txt has no table of contents at all, just paragraphs.
+            val tag = if (looksLikeHeading(p)) "h2" else "p"
+            html.append("<").append(tag).append(">")
+                .append(esc(p.replace(Regex("\\r?\\n"), "<br>")))
+                .append("</").append(tag).append(">")
             text.append(p.replace(Regex("\\r?\\n"), " ")).append("\n\n")
         }
         return finish(fallbackTitle, "", "", html, text)
     }
+
+    /**
+     * Does this paragraph read like a chapter title?
+     *
+     * Deliberately conservative — a wrong [h2] in the middle of a page is worse
+     * than a missing one in the table of contents: a paragraph has to be a single
+     * short line, with no sentence punctuation, and either name itself a chapter
+     * ("Глава 3", "Part II", "Пролог") or be written in caps.
+     */
+    internal fun looksLikeHeading(paragraph: String): Boolean {
+        val line = paragraph.trim()
+        if (line.isEmpty() || line.length > 60 || line.contains('\n')) return false
+        // A sentence ends with punctuation; a title usually does not.
+        if (line.last() in ".,;:!?…)") return false
+        if (line.split(HEADING_SPLIT).firstOrNull()?.lowercase() in HEADING_WORDS) return true
+        // Bare chapter numbers ("12") are common in plain-text books.
+        if (line.length <= 3 && line.all { it.isDigit() }) return true
+        val letters = line.filter { it.isLetter() }
+        return letters.length >= 3 && letters.all { it.isUpperCase() }
+    }
+
+    private val HEADING_SPLIT = Regex("[\\s]+")
+    private val HEADING_WORDS = setOf(
+        "глава", "часть", "книга", "том", "пролог", "эпилог", "вступление",
+        "chapter", "part", "book", "prologue", "epilogue"
+    )
 
     private fun finish(
         title: String,

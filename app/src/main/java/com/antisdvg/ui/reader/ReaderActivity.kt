@@ -8,16 +8,20 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.ScrollView
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.addCallback
@@ -33,11 +37,13 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.antisdvg.AntiSdvgApp
 import com.antisdvg.R
+import com.antisdvg.data.model.Bookmark
 import com.antisdvg.data.model.QuizQuestion
 import com.antisdvg.databinding.ActivityReaderBinding
 import com.antisdvg.ui.AppViewModelFactory
 import com.antisdvg.util.ReaderProgress
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
 
@@ -94,6 +100,12 @@ class ReaderActivity : AppCompatActivity() {
 
     /** True while a dialog owns the screen, so its seconds are not reading time. */
     private var modalOpen = false
+
+    /** True while the progress slider is being dragged, so it is not fought over. */
+    private var seeking = false
+
+    /** True when the bars are hidden and only the text is on screen. */
+    private var barsHidden = false
 
     /** Colors of the theme currently drawn, so the timer can dim itself when idle. */
     private var palette = paletteOf(ReaderTheme.PAPER)
@@ -152,6 +164,21 @@ class ReaderActivity : AppCompatActivity() {
 
         binding.readerClose.setOnClickListener { confirmExit() }
         binding.readerFinish.setOnClickListener { onFinishClicked() }
+        binding.readerMenu.setOnClickListener { showReaderMenu() }
+        binding.readerSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(bar: SeekBar?, value: Int, fromUser: Boolean) = Unit
+            override fun onStartTrackingTouch(bar: SeekBar?) {
+                seeking = true
+            }
+
+            override fun onStopTrackingTouch(bar: SeekBar?) {
+                // Jump on release only: dragging across 900 pages would otherwise
+                // re-lay the book out hundreds of times.
+                seeking = false
+                lastActivityMs = SystemClock.elapsedRealtime()
+                evaluate("Reader.goToRatio(${(bar?.progress ?: 0) / 1000.0})")
+            }
+        })
         binding.readerTheme.setOnClickListener {
             viewModel.cycleTheme()
             toast(themeLabel(viewModel.state.value.theme))
@@ -168,6 +195,7 @@ class ReaderActivity : AppCompatActivity() {
         binding.readerFontPlus.setOnClickListener { viewModel.adjustFont(10) }
 
         binding.readerTimer.visibility = View.INVISIBLE
+        applyBrightness()
 
         // The system back gesture means the same as ✕: keep the position, offer
         // to close the session properly instead of silently dropping it.
@@ -241,13 +269,23 @@ class ReaderActivity : AppCompatActivity() {
         }
 
         val percent = (state.progress * 100).toInt().coerceIn(0, 100)
-        binding.readerProgress.progress = percent
-        binding.readerPercent.text = getString(
-            R.string.reader_position,
-            percent,
-            viewModel.currentPage(),
-            viewModel.totalPages()
-        )
+        if (!seeking) binding.readerSeek.progress = percent * 10
+        binding.readerPercent.text = if (state.chapter.isBlank()) {
+            getString(
+                R.string.reader_position,
+                percent,
+                viewModel.currentPage(),
+                viewModel.totalPages()
+            )
+        } else {
+            getString(
+                R.string.reader_position_chapter,
+                state.chapter,
+                percent,
+                viewModel.currentPage(),
+                viewModel.totalPages()
+            )
+        }
 
         // Preferences change rarely — never rewrite them once per timer tick.
         val key = "${state.theme.ordinal}|${state.fontPercent}|${state.font.ordinal}|${state.mode.ordinal}"
@@ -505,6 +543,7 @@ class ReaderActivity : AppCompatActivity() {
                   used = usedWidth();
                 }
                 total = Math.max(1, Math.ceil(used / w));
+                buildToc();
                 ReaderBridge.debug('pageW=' + w + ' pageH=' + h + ' used=' + Math.round(used) +
                   ' total=' + total + ' inner=' + window.innerWidth + 'x' + window.innerHeight +
                   ' dpr=' + window.devicePixelRatio);
@@ -563,6 +602,74 @@ class ReaderActivity : AppCompatActivity() {
                 markVisited();
                 ReaderBridge.onProgress(ratio());
                 ReaderBridge.onPage(cur + 1, total);
+                ReaderBridge.onChapter(chapterName());
+              }
+
+              // ---- Navigation ----
+
+              // Chapters as the markup describes them: FB2 titles become h2/h3,
+              // plain text gets them guessed at import. One pass over the blocks,
+              // so the table of contents costs nothing later.
+              var tocEls = [], tocItems = [];
+              function buildToc() {
+                tocEls = [];
+                tocItems = [];
+                var base = c.getBoundingClientRect().left;
+                var kids = c.children;
+                for (var i = 0; i < kids.length; i++) {
+                  var k = kids[i];
+                  var tag = (k.tagName || '').toUpperCase();
+                  if (tag !== 'H1' && tag !== 'H2' && tag !== 'H3') { continue; }
+                  var title = (k.textContent || '').replace(/\s+/g, ' ').trim();
+                  if (!title) { continue; }
+                  var r = k.getBoundingClientRect();
+                  var col = pageW > 0 ? Math.floor((r.left - base) / pageW + 0.001) : 0;
+                  tocEls.push(k);
+                  tocItems.push({ title: title, page: clamp(col, 0, total - 1) + 1,
+                                  level: tag === 'H1' ? 1 : (tag === 'H2' ? 2 : 3) });
+                }
+              }
+
+              // Where in the book the reader currently is: the last heading above
+              // the current screen. Empty in ribbon mode, which has no columns.
+              function chapterName() {
+                if (!paged || !tocItems.length) { return ''; }
+                var name = '';
+                for (var i = 0; i < tocItems.length; i++) {
+                  if (tocItems[i].page - 1 <= cur) { name = tocItems[i].title; } else { break; }
+                }
+                return name;
+              }
+
+              function goToPage(page) {
+                if (!paged) { return; }
+                cur = clamp(Math.round(page) - 1, 0, total - 1);
+                place(true);
+                report();
+              }
+
+              function goToHeading(index) {
+                var el = tocEls[index];
+                if (!el) { return; }
+                if (paged) {
+                  goToPage(tocItems[index].page);
+                } else {
+                  el.scrollIntoView();
+                }
+              }
+
+              function step(dir) {
+                if (paged) { go(cur + dir); } else { window.scrollBy(0, dir * window.innerHeight * 0.9); }
+              }
+
+              function goToRatio(r) {
+                var value = clamp(r, 0, 1);
+                if (paged) {
+                  goToPage(pageFor(value) + 1);
+                } else {
+                  var m = document.documentElement.scrollHeight - window.innerHeight;
+                  window.scrollTo(0, m * value);
+                }
               }
 
               function go(page) {
@@ -601,6 +708,9 @@ class ReaderActivity : AppCompatActivity() {
                   var x = t.clientX, w = vp.clientWidth;
                   if (x < w * 0.3) { go(cur - 1); }
                   else if (x > w * 0.7) { go(cur + 1); }
+                  // The middle of the page is not a page turn: it shows or hides
+                  // the panels, the way a tap in the middle of a reader should.
+                  else { ReaderBridge.onToggleBars(); }
                 }
               }, { passive: true });
 
@@ -660,6 +770,8 @@ class ReaderActivity : AppCompatActivity() {
                     c.style.width = '';
                     c.style.columnWidth = '';
                     cur = 0;
+                    // The ribbon has no columns, but still has headings to jump to.
+                    buildToc();
                     // The ribbon has no pages of its own: fall back to the
                     // character estimate for the page label.
                     ReaderBridge.onPage(0, 0);
@@ -670,6 +782,13 @@ class ReaderActivity : AppCompatActivity() {
                   }
                 },
                 restore: function () { if (paged) { reflow(true); } },
+                // Navigation for the app's own panels: chapter list, page jump,
+                // slider, volume keys.
+                toc: function () { return tocItems; },
+                goToPage: goToPage,
+                goToHeading: goToHeading,
+                goToRatio: goToRatio,
+                step: step,
                 // What the session should be judged on: the screens really shown
                 // and their text. Null in ribbon mode, where the reader has no
                 // pages of its own and Kotlin falls back to the progress range.
@@ -695,6 +814,8 @@ class ReaderActivity : AppCompatActivity() {
               if (paged) {
                 reflow(false);
               } else {
+                // Headings still exist in the ribbon: build the table of contents.
+                buildToc();
                 requestAnimationFrame(function () {
                   var m = document.documentElement.scrollHeight - window.innerHeight;
                   if (m > 0) { window.scrollTo(0, m * INITIAL); }
@@ -718,6 +839,16 @@ class ReaderActivity : AppCompatActivity() {
         }
 
         @JavascriptInterface
+        fun onChapter(name: String) {
+            runOnUiThread { viewModel.noteChapter(name) }
+        }
+
+        @JavascriptInterface
+        fun onToggleBars() {
+            runOnUiThread { toggleBars() }
+        }
+
+        @JavascriptInterface
         fun onActivity() {
             lastActivityMs = SystemClock.elapsedRealtime()
         }
@@ -727,6 +858,240 @@ class ReaderActivity : AppCompatActivity() {
         fun debug(message: String) {
             Log.d(TAG, message)
         }
+    }
+
+    // ---- Navigation, bookmarks, comfort ----
+
+    /**
+     * Everything that is not reading, in one panel: how bright the page is, where
+     * to jump, what to remember. Splitting these into separate buttons would not
+     * fit the top bar, and none of them is used often enough to deserve one.
+     */
+    private fun showReaderMenu() {
+        val density = resources.displayMetrics.density
+        val pad = (density * 20).toInt()
+        val rows = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, pad, pad, 0)
+        }
+
+        val current = brightness()
+        val brightnessLabel = TextView(this).apply {
+            text = brightnessLabel(current.takeIf { it > 0f } ?: systemBrightness())
+            textSize = 14f
+        }
+        val slider = SeekBar(this).apply {
+            max = 100
+            progress = ((current.takeIf { it > 0f } ?: systemBrightness()) * 100).toInt().coerceIn(5, 100)
+        }
+        slider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(bar: SeekBar?, value: Int, fromUser: Boolean) {
+                if (!fromUser) return
+                setBrightness(value / 100f)
+                brightnessLabel.text = brightnessLabel(value / 100f)
+            }
+
+            override fun onStartTrackingTouch(bar: SeekBar?) = Unit
+            override fun onStopTrackingTouch(bar: SeekBar?) = Unit
+        })
+        rows.addView(brightnessLabel)
+        rows.addView(slider)
+        rows.addView(menuRow(R.string.reader_contents) { showContents() })
+        rows.addView(menuRow(R.string.reader_jump) { showJumpDialog() })
+        rows.addView(menuRow(R.string.reader_bookmark_add) { addBookmark() })
+        rows.addView(menuRow(R.string.reader_bookmarks) { showBookmarks() })
+        rows.addView(menuRow(R.string.reader_clean_screen) { toggleBars() })
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.reader_menu)
+            .setView(rows)
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
+
+    private fun menuRow(textRes: Int, onClick: () -> Unit): TextView = TextView(this).apply {
+        text = getString(textRes)
+        textSize = 16f
+        val pad = (resources.displayMetrics.density * 12).toInt()
+        setPadding(0, pad, 0, pad)
+        isClickable = true
+        setOnClickListener { onClick() }
+    }
+
+    /** The table of contents the page itself built from the book's headings. */
+    private fun showContents() {
+        binding.readerWeb.evaluateJavascript("Reader.toc()") { raw ->
+            val items = parseToc(raw)
+            if (items.isEmpty()) {
+                infoDialog(getString(R.string.reader_contents), getString(R.string.reader_contents_empty))
+                return@evaluateJavascript
+            }
+            AlertDialog.Builder(this)
+                .setTitle(R.string.reader_contents)
+                .setItems(items.map { it.title }.toTypedArray()) { _, which -> jumpToItem(items[which]) }
+                .setNegativeButton(R.string.reader_stay, null)
+                .show()
+        }
+    }
+
+    private data class TocItem(val title: String, val page: Int, val index: Int)
+
+    private fun parseToc(raw: String?): List<TocItem> {
+        if (raw.isNullOrBlank() || raw == "null") return emptyList()
+        val json = runCatching {
+            val text = if (raw.startsWith("\"")) JSONTokener(raw).nextValue() as String else raw
+            JSONArray(text)
+        }.getOrNull() ?: return emptyList()
+        return (0 until json.length()).mapNotNull { i ->
+            val item = json.optJSONObject(i) ?: return@mapNotNull null
+            val title = item.optString("title")
+            if (title.isBlank()) null else TocItem(title, item.optInt("page", 1), i)
+        }
+    }
+
+    private fun jumpToItem(item: TocItem) {
+        // Paged mode jumps by page number, the ribbon by scrolling the heading in.
+        if (viewModel.state.value.mode == ReaderMode.PAGED) {
+            evaluate("Reader.goToPage(${item.page})")
+        } else {
+            evaluate("Reader.goToHeading(${item.index})")
+        }
+        lastActivityMs = SystemClock.elapsedRealtime()
+    }
+
+    private fun showJumpDialog() {
+        val total = viewModel.totalPages()
+        val input = EditText(this).apply {
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            hint = getString(R.string.reader_jump_title, total)
+        }
+        val pad = (resources.displayMetrics.density * 20).toInt()
+        val wrapper = FrameLayout(this).apply {
+            setPadding(pad, pad / 2, pad, 0)
+            addView(input)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.reader_jump)
+            .setView(wrapper)
+            .setPositiveButton(R.string.reader_jump_go) { _, _ ->
+                val page = input.text.toString().toIntOrNull() ?: return@setPositiveButton
+                if (viewModel.state.value.mode == ReaderMode.PAGED) {
+                    evaluate("Reader.goToPage(${page.coerceIn(1, total)})")
+                } else {
+                    val ratio = (page - 1).coerceAtLeast(0).toDouble() / (total - 1).coerceAtLeast(1)
+                    evaluate("Reader.goToRatio(${ratio.coerceIn(0.0, 1.0)})")
+                }
+                lastActivityMs = SystemClock.elapsedRealtime()
+            }
+            .setNegativeButton(R.string.reader_stay, null)
+            .show()
+    }
+
+    /** Remembers this place. The page number is for the label, progress for the jump. */
+    private fun addBookmark() {
+        val state = viewModel.state.value
+        val book = state.book ?: return
+        val page = viewModel.currentPage()
+        lifecycleScope.launch {
+            repo.addBookmark(book.id, state.progress, page)
+            toast(getString(R.string.reader_bookmark_added, page))
+        }
+    }
+
+    private fun showBookmarks() {
+        val book = viewModel.state.value.book ?: return
+        lifecycleScope.launch {
+            val marks = repo.bookmarks(book.id)
+            if (marks.isEmpty()) {
+                infoDialog(getString(R.string.reader_bookmarks), getString(R.string.reader_bookmarks_empty))
+                return@launch
+            }
+            AlertDialog.Builder(this@ReaderActivity)
+                .setTitle(R.string.reader_bookmarks)
+                .setItems(marks.map { getString(R.string.reader_bookmark_goto, it.page) }.toTypedArray()) { _, which ->
+                    val mark = marks[which]
+                    evaluate("Reader.goToRatio(${mark.progress})")
+                    lastActivityMs = SystemClock.elapsedRealtime()
+                }
+                .setNeutralButton(R.string.reader_bookmark_delete) { _, _ -> showDeleteBookmark(marks) }
+                .setNegativeButton(R.string.reader_stay, null)
+                .show()
+        }
+    }
+
+    private fun showDeleteBookmark(marks: List<Bookmark>) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.reader_bookmark_delete)
+            .setItems(marks.map { getString(R.string.reader_bookmark_goto, it.page) }.toTypedArray()) { _, which ->
+                val mark = marks[which]
+                lifecycleScope.launch {
+                    repo.deleteBookmark(mark.id)
+                    toast(getString(R.string.reader_bookmark_deleted, mark.page))
+                }
+            }
+            .setNegativeButton(R.string.reader_stay, null)
+            .show()
+    }
+
+    private fun infoDialog(title: String, message: String) {
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
+
+    private fun brightness(): Float = uiPrefs.getFloat(KEY_BRIGHTNESS, -1f)
+
+    private fun systemBrightness(): Float =
+        android.provider.Settings.System
+            .getInt(contentResolver, android.provider.Settings.System.SCREEN_BRIGHTNESS, 128) / 255f
+
+    private fun setBrightness(value: Float) {
+        val level = value.coerceIn(0.05f, 1f)
+        uiPrefs.edit().putFloat(KEY_BRIGHTNESS, level).apply()
+        window.attributes = window.attributes.apply { screenBrightness = level }
+    }
+
+    /** Puts back the brightness the reader was left at; system one stays system. */
+    private fun applyBrightness() {
+        val level = brightness()
+        if (level > 0f) window.attributes = window.attributes.apply { screenBrightness = level }
+    }
+
+    private fun brightnessLabel(value: Float): String =
+        if (value <= 0f) getString(R.string.reader_brightness_system)
+        else getString(R.string.reader_brightness_label, (value * 100).toInt())
+
+    /** Text and nothing else: the panels come back on the next tap in the middle. */
+    private fun toggleBars() {
+        barsHidden = !barsHidden
+        val visibility = if (barsHidden) View.GONE else View.VISIBLE
+        binding.readerBar.visibility = visibility
+        binding.readerSeek.visibility = visibility
+        binding.readerBottom.visibility = visibility
+    }
+
+    /**
+     * Volume keys turn pages, the way every e-reader does: one hand, phone in a
+     * fist, thumb on the volume rocker. Down is forward, up is back.
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 && !modalOpen) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                    evaluate("Reader.step(1)")
+                    lastActivityMs = SystemClock.elapsedRealtime()
+                    return true
+                }
+                KeyEvent.KEYCODE_VOLUME_UP -> {
+                    evaluate("Reader.step(-1)")
+                    lastActivityMs = SystemClock.elapsedRealtime()
+                    return true
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     // ---- Session end ----
@@ -1032,6 +1397,9 @@ class ReaderActivity : AppCompatActivity() {
         private const val KEY_FONT_FAMILY = "font_family"
         private const val KEY_MODE = "mode"
         private const val KEY_PAGING_HINT = "paging_hint_shown"
+
+        /** Screen brightness the reader was left at; < 0 means "leave it alone". */
+        private const val KEY_BRIGHTNESS = "brightness"
 
         /** Reading a full screen without touching it must not pause the timer. */
         private const val IDLE_TIMEOUT_MS = 180_000L

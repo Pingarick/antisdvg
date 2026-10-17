@@ -10,6 +10,7 @@ import com.antisdvg.data.model.Achievement
 import com.antisdvg.data.model.AppSettings
 import com.antisdvg.data.model.BlockedApp
 import com.antisdvg.data.model.Book
+import com.antisdvg.data.model.Bookmark
 import com.antisdvg.data.model.EmergencyTokens
 import com.antisdvg.data.model.FocusSession
 import com.antisdvg.data.model.ReadingSession
@@ -26,9 +27,10 @@ import com.antisdvg.data.model.Wallet
         Achievement::class,
         UserStats::class,
         AppSettings::class,
-        BlockedApp::class
+        BlockedApp::class,
+        Bookmark::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -45,7 +47,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "anti_sdvg.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11).build().also { INSTANCE = it }
             }
 
         /** v1→v2: add the paper/electronic [format] column to books, defaulting to paper. */
@@ -130,6 +132,24 @@ abstract class AppDatabase : RoomDatabase() {
         private val MIGRATION_9_10 = object : Migration(9, 10) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("UPDATE app_settings SET minutesPerPage = 3 WHERE minutesPerPage = 5")
+            }
+        }
+
+        /**
+         * v10→v11: bookmarks in imported books. Positions are progress, not page
+         * numbers, so a bookmark survives a font or screen change.
+         */
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS bookmarks (" +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "bookId INTEGER NOT NULL, " +
+                        "progress REAL NOT NULL, " +
+                        "page INTEGER NOT NULL, " +
+                        "label TEXT NOT NULL, " +
+                        "createdAt INTEGER NOT NULL)"
+                )
             }
         }
     }

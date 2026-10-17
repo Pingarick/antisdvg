@@ -53,7 +53,9 @@ data class ReaderUiState(
     val theme: ReaderTheme = ReaderTheme.PAPER,
     val fontPercent: Int = 100,
     val font: ReaderFont = ReaderFont.SERIF,
-    val mode: ReaderMode = ReaderMode.PAGED
+    val mode: ReaderMode = ReaderMode.PAGED,
+    /** Title of the chapter the current screen belongs to, when it is known. */
+    val chapter: String = ""
 )
 
 /** What the session actually produced, shown before the light test. */
@@ -219,6 +221,11 @@ class ReaderViewModel(
      */
     fun noteExcerpt(excerpt: ReadExcerpt) {
         this.excerpt = excerpt
+    }
+
+    /** The chapter the page reports for the current screen, for the footer. */
+    fun noteChapter(name: String) {
+        if (_state.value.chapter != name) _state.update { it.copy(chapter = name) }
     }
 
     fun setTheme(theme: ReaderTheme) = _state.update { it.copy(theme = theme) }

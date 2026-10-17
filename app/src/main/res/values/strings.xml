@@ -279,7 +279,7 @@
     <string name="reader_mode">Как листать</string>
     <string name="reader_mode_paged">Листать вправо, по страницам</string>
     <string name="reader_mode_scroll">Лента, прокрутка вниз</string>
-    <string name="reader_hint_paged">Листать: свайп влево или тап по правому краю</string>
+    <string name="reader_hint_paged">Листать: свайп или тап по краям. Кнопки громкости тоже листают, тап по центру прячет панели.</string>
     <string name="reader_timer_paused">%1$s пауза</string>
     <string name="reader_font_smaller">Уменьшить шрифт</string>
     <string name="reader_font_bigger">Увеличить шрифт</string>
@@ -310,6 +310,27 @@
     <string name="reader_quiz_title">Проверка чтения</string>
     <string name="reader_quiz_header">Вопросов: %1$d · стр. %2$s</string>
     <string name="reader_page_range">%1$d–%2$d</string>
+    <string name="reader_position_chapter">%1$s · %2$d%% · стр. %3$d из %4$d</string>
+
+    <!-- Reader navigation -->
+    <string name="reader_menu">Меню читалки</string>
+    <string name="reader_contents">Содержание</string>
+    <string name="reader_contents_empty">В этой книге не нашлось ни одной главы.</string>
+    <string name="reader_jump">Перейти к странице</string>
+    <string name="reader_jump_title">Страница 1–%1$d</string>
+    <string name="reader_jump_go">Перейти</string>
+    <string name="reader_bookmarks">Закладки</string>
+    <string name="reader_bookmarks_empty">Закладок пока нет. Жми «Добавить закладку», чтобы запомнить место.</string>
+    <string name="reader_bookmark_add">Добавить закладку</string>
+    <string name="reader_bookmark_added">Закладка на стр. %1$d</string>
+    <string name="reader_bookmark_deleted">Закладка на стр. %1$d удалена</string>
+    <string name="reader_bookmark_goto">стр. %1$d</string>
+    <string name="reader_bookmark_delete">Удалить</string>
+    <string name="reader_comfort">Яркость</string>
+    <string name="reader_clean_screen">Чистый экран</string>
+    <string name="reader_brightness_label">Яркость: %1$d%%</string>
+    <string name="reader_brightness_system">Яркость: системная</string>
+    <string name="reader_hint_center">Тап по центру скрывает панели</string>
     <string name="reader_check">Проверить</string>
     <string name="reader_retry">Ещё попытка</string>
     <string name="reader_quiz_pass">Верно %1$d из %2$d. +%3$d мин в кошелёк!</string>

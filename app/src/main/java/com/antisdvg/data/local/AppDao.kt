@@ -9,6 +9,7 @@ import com.antisdvg.data.model.Achievement
 import com.antisdvg.data.model.AppSettings
 import com.antisdvg.data.model.BlockedApp
 import com.antisdvg.data.model.Book
+import com.antisdvg.data.model.Bookmark
 import com.antisdvg.data.model.DayReading
 import com.antisdvg.data.model.EmergencyTokens
 import com.antisdvg.data.model.FocusSession
@@ -51,6 +52,22 @@ interface AppDao {
 
     @Query("DELETE FROM reading_sessions WHERE bookId = :bookId")
     suspend fun deleteSessionsForBook(bookId: Long)
+
+    // ---- Bookmarks ----
+    @Query("SELECT * FROM bookmarks WHERE bookId = :bookId ORDER BY progress")
+    fun observeBookmarks(bookId: Long): Flow<List<Bookmark>>
+
+    @Query("SELECT * FROM bookmarks WHERE bookId = :bookId ORDER BY progress")
+    suspend fun bookmarks(bookId: Long): List<Bookmark>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBookmark(bookmark: Bookmark): Long
+
+    @Query("DELETE FROM bookmarks WHERE id = :id")
+    suspend fun deleteBookmark(id: Long)
+
+    @Query("DELETE FROM bookmarks WHERE bookId = :bookId")
+    suspend fun deleteBookmarksForBook(bookId: Long)
 
     // ---- Reading sessions ----
     @Insert(onConflict = OnConflictStrategy.REPLACE)
