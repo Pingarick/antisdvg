@@ -24,6 +24,7 @@ import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
@@ -74,6 +75,9 @@ class ReaderActivity : AppCompatActivity() {
     private var savedPrefsKey = ""
     private var attempts = 0
 
+    /** Colors of the theme currently drawn, so the timer can dim itself when idle. */
+    private var palette = paletteOf(ReaderTheme.PAPER)
+
     /** Active seconds since the last bookmark save; see [AUTOSAVE_SECONDS]. */
     private var secondsSinceSave = 0
 
@@ -82,13 +86,13 @@ class ReaderActivity : AppCompatActivity() {
             val active = SystemClock.elapsedRealtime() - lastActivityMs < IDLE_TIMEOUT_MS
             if (active) {
                 viewModel.onTick()
-                renderTimer()
                 // Autosave: a killed app must not cost the reader their place.
                 if (++secondsSinceSave >= AUTOSAVE_SECONDS) {
                     secondsSinceSave = 0
                     viewModel.persistProgress()
                 }
             }
+            renderTimer(active)
             handler.postDelayed(this, 1_000L)
         }
     }
@@ -207,6 +211,7 @@ class ReaderActivity : AppCompatActivity() {
                     "utf-8",
                     null
                 )
+                showPagingHintOnce(state.mode)
             } else {
                 applyStyleChanges(state)
             }
@@ -217,7 +222,7 @@ class ReaderActivity : AppCompatActivity() {
         binding.readerPercent.text = getString(
             R.string.reader_position,
             percent,
-            viewModel.pageAt(state.progress),
+            viewModel.currentPage(),
             viewModel.totalPages()
         )
 
@@ -268,10 +273,33 @@ class ReaderActivity : AppCompatActivity() {
         binding.readerWeb.evaluateJavascript(js, null)
     }
 
-    private fun renderTimer() {
+    /**
+     * Tap zones are invisible, so the first paged session says it once. Nobody
+     * discovers "tap the right edge" by staring at a book.
+     */
+    private fun showPagingHintOnce(mode: ReaderMode) {
+        if (mode != ReaderMode.PAGED) return
+        if (uiPrefs.getBoolean(KEY_PAGING_HINT, false)) return
+        uiPrefs.edit().putBoolean(KEY_PAGING_HINT, true).apply()
+        handler.postDelayed({ toast(getString(R.string.reader_hint_paged)) }, 1_500L)
+    }
+
+    /**
+     * The timer is the whole point of the screen, so it must be obvious when it
+     * is counting and when it has stopped: a frozen clock looks like a broken
+     * counter, and reading on a dense page for three minutes without touching
+     * the screen does stop it.
+     */
+    private fun renderTimer(active: Boolean) {
         val seconds = viewModel.state.value.activeSeconds
+        val clock = String.format("%d:%02d", seconds / 60, seconds % 60)
         binding.readerTimer.visibility = View.VISIBLE
-        binding.readerTimer.text = String.format("%d:%02d", seconds / 60, seconds % 60)
+        binding.readerTimer.text =
+            if (active) clock else getString(R.string.reader_timer_paused, clock)
+        binding.readerTimer.setTextColor(
+            if (active) ContextCompat.getColor(this, R.color.accent_primary_dark)
+            else Color.parseColor(palette.muted)
+        )
     }
 
     /**
@@ -301,7 +329,7 @@ class ReaderActivity : AppCompatActivity() {
      * themes the surrounding chrome must go dark with the page, not stay white.
      */
     private fun applyChrome(theme: ReaderTheme) {
-        val palette = paletteOf(theme)
+        palette = paletteOf(theme)
         val bg = Color.parseColor(palette.bg)
         val fg = Color.parseColor(palette.fg)
         val muted = Color.parseColor(palette.muted)
@@ -377,7 +405,7 @@ class ReaderActivity : AppCompatActivity() {
         val startClass = if (state.mode == ReaderMode.PAGED) "paged" else "scroll"
         val initial = state.progress.coerceIn(0.0, 1.0)
         return """
-            <!DOCTYPE html><html><head>
+            <!DOCTYPE html><html lang="ru"><head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
             <style>
@@ -391,10 +419,13 @@ class ReaderActivity : AppCompatActivity() {
               body.paged #vp{position:fixed;left:18px;top:18px;right:18px;bottom:30px;
                              padding:0;overflow:hidden;}
               body.paged #content{column-gap:0;column-fill:auto;will-change:transform;}
-              h2{font-size:1.25em;margin:1.1em 0 0.5em;line-height:1.3;}
-              h3{font-size:1.1em;margin:1em 0 0.4em;}
+              h2{font-size:1.3em;margin:1.4em 0 0.6em;line-height:1.25;letter-spacing:-0.01em;}
+              h3{font-size:1.12em;margin:1.2em 0 0.5em;}
+              h2:first-child,h3:first-child{margin-top:0;}
               body.paged h2,body.paged h3{break-after:avoid;}
-              p{margin:0 0 0.85em;text-align:justify;orphans:2;widows:2;}
+              /* Justified Russian needs hyphenation, or the word gaps turn into rivers. */
+              p{margin:0 0 0.9em;text-align:justify;orphans:2;widows:2;
+                -webkit-hyphens:auto;hyphens:auto;}
               .gap{height:0.7em;}
             </style></head>
             <body class="$startClass">
@@ -461,7 +492,10 @@ class ReaderActivity : AppCompatActivity() {
                 c.style.transform = 'translateX(' + (-cur * pageW) + 'px)';
               }
 
-              function report() { ReaderBridge.onProgress(ratio()); }
+              function report() {
+                ReaderBridge.onProgress(ratio());
+                ReaderBridge.onPage(cur + 1, total);
+              }
 
               function go(page) {
                 if (!paged) { return; }
@@ -556,6 +590,9 @@ class ReaderActivity : AppCompatActivity() {
                     c.style.width = '';
                     c.style.columnWidth = '';
                     cur = 0;
+                    // The ribbon has no pages of its own: fall back to the
+                    // character estimate for the page label.
+                    ReaderBridge.onPage(0, 0);
                     requestAnimationFrame(function () {
                       var m = document.documentElement.scrollHeight - window.innerHeight;
                       if (m > 0) { window.scrollTo(0, m * was); }
@@ -581,11 +618,16 @@ class ReaderActivity : AppCompatActivity() {
         """.trimIndent()
     }
 
-    /** JS -> Kotlin: position and any sign of life. */
+    /** JS -> Kotlin: position, real page numbers and any sign of life. */
     private inner class Bridge {
         @JavascriptInterface
         fun onProgress(ratio: Double) {
             runOnUiThread { viewModel.noteProgress(ratio) }
+        }
+
+        @JavascriptInterface
+        fun onPage(page: Int, pages: Int) {
+            runOnUiThread { viewModel.notePage(page, pages) }
         }
 
         @JavascriptInterface
@@ -727,6 +769,7 @@ class ReaderActivity : AppCompatActivity() {
         private const val KEY_FONT_SIZE = "font_size"
         private const val KEY_FONT_FAMILY = "font_family"
         private const val KEY_MODE = "mode"
+        private const val KEY_PAGING_HINT = "paging_hint_shown"
 
         /** Reading a full screen without touching it must not pause the timer. */
         private const val IDLE_TIMEOUT_MS = 180_000L

@@ -1,9 +1,28 @@
 package com.antisdvg.util
 
+import com.antisdvg.data.model.AppSettings
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class TimeCalculatorTest {
+
+    @Test
+    fun `paper books pay three minutes a page by default`() {
+        // Was five, which paid roughly three times the time the page took to read.
+        assertEquals(3, AppSettings().minutesPerPage)
+    }
+
+    @Test
+    fun `ten paper pages pay a friendly but not absurd amount`() {
+        // 10 * 3 = 30, progressive bonus 10*10*0.05 = 5 -> 35 for ~20 minutes of reading.
+        val minutes = TimeCalculator.minutesForReading(
+            pages = 10,
+            minutesPerPage = AppSettings().minutesPerPage,
+            useProgressiveBonus = true,
+            streak = 0
+        )
+        assertEquals(35, minutes)
+    }
 
     @Test
     fun `minutesForReading calculates linear minutes`() {

@@ -28,7 +28,7 @@ import com.antisdvg.data.model.Wallet
         AppSettings::class,
         BlockedApp::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -45,7 +45,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "anti_sdvg.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10).build().also { INSTANCE = it }
             }
 
         /** v1→v2: add the paper/electronic [format] column to books, defaulting to paper. */
@@ -116,6 +116,20 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE books ADD COLUMN filePath TEXT NOT NULL DEFAULT ''")
                 db.execSQL("ALTER TABLE books ADD COLUMN fileKind TEXT NOT NULL DEFAULT ''")
                 db.execSQL("ALTER TABLE books ADD COLUMN progress REAL NOT NULL DEFAULT 0")
+            }
+        }
+
+        /**
+         * v9→v10: paper books pay three minutes a page instead of five.
+         *
+         * The default lives in a stored row, so changing the Kotlin value alone
+         * would leave every existing install on the old rate. Rows still carrying
+         * the old default move over; a page rate the user typed themselves is
+         * indistinguishable from it and moves too — which is what was asked for.
+         */
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("UPDATE app_settings SET minutesPerPage = 3 WHERE minutesPerPage = 5")
             }
         }
     }

@@ -278,6 +278,8 @@
     <string name="reader_mode">Как листать</string>
     <string name="reader_mode_paged">Листать вправо, по страницам</string>
     <string name="reader_mode_scroll">Лента, прокрутка вниз</string>
+    <string name="reader_hint_paged">Листать: свайп влево или тап по правому краю</string>
+    <string name="reader_timer_paused">%1$s пауза</string>
     <string name="reader_font_smaller">Уменьшить шрифт</string>
     <string name="reader_font_bigger">Увеличить шрифт</string>
     <string name="reader_opening">Открываю книгу…</string>

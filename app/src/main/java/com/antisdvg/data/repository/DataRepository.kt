@@ -63,6 +63,18 @@ class DataRepository(
     }
 
     /**
+     * Corrects the book's page count once the reader has laid the text out and
+     * knows how many screens it really fills. The import-time estimate is only
+     * a guess, and the library card should not disagree with the reader.
+     */
+    suspend fun setBookTotalPages(bookId: Long, totalPages: Int) {
+        if (totalPages <= 0) return
+        val book = dao.getBook(bookId) ?: return
+        if (book.totalPages == totalPages) return
+        dao.updateBook(book.copy(totalPages = totalPages))
+    }
+
+    /**
      * Makes [book] the reader's current book ("continue reading" on the home
      * screen), demoting whichever book was active before.
      */

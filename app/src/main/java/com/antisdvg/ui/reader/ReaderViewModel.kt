@@ -46,6 +46,10 @@ data class ReaderUiState(
     val activeSeconds: Int = 0,
     /** Furthest progress reached during this session, 0..1. */
     val progress: Double = 0.0,
+    /** Exact page the paged layout is on, 1-based; 0 while it is unknown. */
+    val page: Int = 0,
+    /** Exact page count of the paged layout; 0 while it is unknown. */
+    val pages: Int = 0,
     val theme: ReaderTheme = ReaderTheme.PAPER,
     val fontPercent: Int = 100,
     val font: ReaderFont = ReaderFont.SERIF,
@@ -157,6 +161,30 @@ class ReaderViewModel(
         if (value > _state.value.progress) _state.update { it.copy(progress = value) }
     }
 
+    /**
+     * The paged layout reports where it really is. This is what the reader shows
+     * and what the session counts, so "стр. 5 из 6" means the five pages the
+     * reader actually turned, not a guess from the character count.
+     *
+     * The page count of a layout depends on font size and screen, so the book
+     * keeps advertising the rough estimate until the reader has a real number —
+     * then the book is corrected, and the library card agrees with the reader.
+     */
+    fun notePage(page: Int, pages: Int) {
+        val before = _state.value
+        if (before.page == page && before.pages == pages) return
+        _state.update { it.copy(page = page, pages = pages) }
+
+        val book = before.book ?: return
+        if (pages <= 0 || pages == book.totalPages) return
+        viewModelScope.launch {
+            repo.setBookTotalPages(book.id, pages)
+            _state.update { state ->
+                state.copy(book = state.book?.copy(totalPages = pages))
+            }
+        }
+    }
+
     fun setTheme(theme: ReaderTheme) = _state.update { it.copy(theme = theme) }
 
     fun cycleTheme() = setTheme(
@@ -202,7 +230,20 @@ class ReaderViewModel(
         }
     }
 
-    fun totalPages(): Int = _state.value.book?.totalPages?.takeIf { it > 0 } ?: 1
+    /**
+     * Pages of the book as the reader really sees them: the exact count of the
+     * current paged layout when it is known, otherwise the character estimate.
+     */
+    fun totalPages(): Int {
+        val state = _state.value
+        return state.pages.takeIf { it > 0 }
+            ?: state.book?.totalPages?.takeIf { it > 0 }
+            ?: 1
+    }
+
+    /** 1-based page the reader is on right now. */
+    fun currentPage(): Int =
+        _state.value.page.takeIf { it > 0 } ?: pageAt(_state.value.progress)
 
     /** 1-based page equivalent of a 0..1 progress on the current book. */
     fun pageAt(progress: Double): Int = ReaderProgress.pageAt(progress, totalPages())
@@ -276,11 +317,16 @@ class ReaderViewModel(
 
     private suspend fun awardSession(book: Book, summary: SessionSummary): Int {
         val earned = earnedMinutes(summary, book.format)
-        val endPage = ReaderProgress.pageAt(_state.value.progress, book.totalPages)
+        val state = _state.value
+        // Count in the pages the reader saw, and correct the book's page count
+        // in the same write, or "the end of the book" would be judged by the
+        // rough estimate and the book would never be marked as finished.
+        val total = totalPages()
+        val endPage = maxOf(ReaderProgress.pageAt(state.progress, total), book.currentPage)
         repo.recordSession(
-            book = book.copy(progress = _state.value.progress),
+            book = book.copy(progress = state.progress, totalPages = total),
             startPage = summary.fromPage,
-            endPage = maxOf(endPage, book.currentPage),
+            endPage = endPage,
             taskType = VerifyResult.TASK_QUIZ,
             earnedMinutes = earned
         )
