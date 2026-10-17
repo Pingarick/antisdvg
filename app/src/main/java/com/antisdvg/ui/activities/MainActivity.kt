@@ -6,6 +6,8 @@ import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.antisdvg.R
 import com.antisdvg.databinding.ActivityMainBinding
+import com.antisdvg.service.BlockerWarning
+import com.antisdvg.service.BlockerWatchdogReceiver
 
 /** App shell hosting the bottom-tab navigation (library, stats, settings). */
 class MainActivity : AppCompatActivity() {
@@ -21,6 +23,11 @@ class MainActivity : AppCompatActivity() {
         val navHost = supportFragmentManager
             .findFragmentById(R.id.nav_host) as NavHostFragment
         binding.bottomNav.setupWithNavController(navHost.navController)
+
+        // Opening the app is the one moment we are certainly alive: make sure the
+        // daily fence check is armed and tell the truth about the fence right now.
+        BlockerWatchdogReceiver.schedule(this)
+        BlockerWarning.sync(this)
 
         handleNavigationIntent(intent)
     }

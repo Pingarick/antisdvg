@@ -1,12 +1,15 @@
 package com.antisdvg.ui.home
 
 import android.content.res.Resources
+import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.view.animation.DecelerateInterpolator
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -19,6 +22,7 @@ import com.antisdvg.data.model.Book
 import com.antisdvg.data.model.progressPercent
 import com.antisdvg.databinding.FragmentHomeBinding
 import com.antisdvg.service.BlockerService
+import com.antisdvg.service.BlockerWarning
 import com.antisdvg.ui.AppViewModelFactory
 import com.antisdvg.util.BlockerStatus
 import com.bumptech.glide.Glide
@@ -84,6 +88,17 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         }
     }
 
+    /**
+     * Android 13+ keeps notifications switched off until the app asks, and an app
+     * that cannot post them can go silent about its own failure — the exact thing
+     * this screen exists to prevent. So the ask is made right where the reason is.
+     */
+    private val notificationPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        if (view != null) renderBlockerWarning(viewModel.state.value.settings.blockerEnabled)
+    }
+
     override fun onResume() {
         super.onResume()
         // The blocker can be switched off (or back on) from a system screen while
@@ -97,13 +112,39 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
      */
     private fun renderBlockerWarning(enabledInSettings: Boolean) {
         val serviceOn = BlockerStatus.isServiceEnabled(requireContext(), BlockerService::class.java)
-        val down = !enabledInSettings || !serviceOn
-        binding.homeBlockerWarning.isVisible = down
-        binding.homeBlockerWarning.setOnClickListener {
+        val fenceDown = !enabledInSettings || !serviceOn
+        binding.homeBlockerRow.isVisible = fenceDown
+
+        // Notifications are the only way this app can speak up while it is closed,
+        // and Android 13+ leaves them off until asked. Asking here means the person
+        // can see, in the same breath, what they are being asked for and why.
+        val notifOff = !NotificationManagerCompat.from(requireContext()).areNotificationsEnabled()
+        binding.homeNotifRow.isVisible = notifOff
+        binding.homeBlockerWarning.isVisible = fenceDown || notifOff
+
+        // The strip is for the person looking at the screen; the notification is
+        // for the moment they close the app and forget.
+        BlockerWarning.sync(requireContext())
+
+        binding.homeBlockerRow.setOnClickListener {
             startActivity(
                 android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
                     .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
             )
+        }
+        binding.homeNotifRow.setOnClickListener {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                startActivity(
+                    android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                        .putExtra(
+                            android.provider.Settings.EXTRA_APP_PACKAGE,
+                            requireContext().packageName
+                        )
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+            }
         }
     }
 

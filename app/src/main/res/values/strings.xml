@@ -151,6 +151,8 @@
     <string name="blocker_warning_text">Приложения не ограничиваются. Открой настройки и включи Anti-SDVG.</string>
     <string name="home_blocker_off">Приложения не ограничиваются — блокировка выключена</string>
     <string name="home_blocker_off_action">Починить</string>
+    <string name="home_notif_off">Уведомления выключены — не смогу предупредить, если блокировка отключится</string>
+    <string name="home_notif_off_action">Включить</string>
     <string name="blocked_message">Минуты кончились</string>
     <string name="blocked_hint">Почитай немного — и они вернутся. Ты уже знаешь, что это работает.</string>
     <string name="blocked_unlock">Читать сейчас</string>

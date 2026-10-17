@@ -155,10 +155,6 @@ class BlockerService : AccessibilityService() {
         const val NOTIFICATION_ID = 1001
         const val REMINDER_NOTIFICATION_ID = 1002
 
-        /** Warning that the fence is down; cannot be swiped away. */
-        const val WARNING_NOTIFICATION_ID = 1003
-        const val WARNING_CHANNEL_ID = "blocker_warning"
-
         /** How long a restart may take before an interrupted visit is forgotten. */
         private const val INTERRUPTED_SPEND_MS = 2 * 60 * 1000L
 
@@ -387,51 +383,9 @@ class BlockerService : AccessibilityService() {
         return super.onUnbind(intent)
     }
 
-    private fun showBlockerWarning() {
-        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            nm.createNotificationChannel(
-                NotificationChannel(
-                    WARNING_CHANNEL_ID,
-                    getString(R.string.blocker_warning_channel),
-                    NotificationManager.IMPORTANCE_HIGH
-                )
-            )
-        }
-        val open = android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
-            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        val pending = PendingIntent.getActivity(
-            this,
-            2,
-            open,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, WARNING_CHANNEL_ID)
-        } else {
-            @Suppress("DEPRECATION")
-            Notification.Builder(this)
-        }
-        nm.notify(
-            WARNING_NOTIFICATION_ID,
-            builder
-                .setContentTitle(getString(R.string.blocker_warning_title))
-                .setContentText(getString(R.string.blocker_warning_text))
-                .setSmallIcon(R.drawable.ic_launcher)
-                .setContentIntent(pending)
-                .setOngoing(true)
-                .setAutoCancel(false)
-                .build()
-        )
-    }
+    private fun showBlockerWarning() = BlockerWarning.show(this)
 
-    private fun cancelBlockerWarning() {
-        runCatching {
-            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            nm.cancel(WARNING_NOTIFICATION_ID)
-        }
-    }
+    private fun cancelBlockerWarning() = BlockerWarning.cancel(this)
 
     override fun onDestroy() {
         super.onDestroy()

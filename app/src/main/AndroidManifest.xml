@@ -108,6 +108,12 @@
             </intent-filter>
         </receiver>
 
+        <!-- Daily check that the blocker is still switched on: an update can kill
+             the service without the app ever being told. -->
+        <receiver
+            android:name=".service.BlockerWatchdogReceiver"
+            android:exported="false" />
+
         <!-- Home-screen wallet widget. -->
         <receiver
             android:name=".ui.widget.WalletWidgetProvider"

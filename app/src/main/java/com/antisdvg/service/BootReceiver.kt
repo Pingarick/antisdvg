@@ -21,5 +21,7 @@ class BootReceiver : BroadcastReceiver() {
             BlockerService.broadcastRefresh(context.applicationContext)
         } catch (_: Exception) {
         }
+        // A reboot wipes pending alarms, and this is the one that watches the fence.
+        BlockerWatchdogReceiver.schedule(context.applicationContext)
     }
 }
