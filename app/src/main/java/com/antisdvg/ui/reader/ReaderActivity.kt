@@ -148,9 +148,6 @@ class ReaderActivity : AppCompatActivity() {
         return builder.show()
     }
 
-    /** True while the progress slider is being dragged, so it is not fought over. */
-    private var seeking = false
-
     /** True when the bars are hidden and only the text is on screen. */
     private var barsHidden = false
 
@@ -231,26 +228,6 @@ class ReaderActivity : AppCompatActivity() {
         binding.readerFinish.setOnClickListener { onFinishClicked() }
         binding.readerTts.setOnClickListener { toggleSpeech() }
         binding.readerMenu.setOnClickListener { showReaderMenu() }
-        binding.readerSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(bar: SeekBar?, value: Int, fromUser: Boolean) {
-                // Dragging says where it will land; the jump happens on release.
-                if (fromUser) {
-                    binding.readerPercent.text =
-                        getString(R.string.reader_jump_to, viewModel.pageAt(value / 1000.0))
-                }
-            }
-
-            override fun onStartTrackingTouch(bar: SeekBar?) {
-                seeking = true
-            }
-
-            override fun onStopTrackingTouch(bar: SeekBar?) {
-                // Jump on release only: dragging across 900 pages would otherwise
-                // re-lay the book out hundreds of times.
-                seeking = false
-                goTo("Reader.goToRatio(${(bar?.progress ?: 0) / 1000.0})")
-            }
-        })
         binding.readerTheme.setOnClickListener {
             viewModel.cycleTheme()
             toast(themeLabel(viewModel.state.value.theme))
@@ -461,8 +438,8 @@ class ReaderActivity : AppCompatActivity() {
             }
         }
 
-        val percent = (state.progress * 100).toInt().coerceIn(0, 100)
-        if (!seeking) binding.readerSeek.progress = percent * 10
+        // The footer describes where the reader is, not how far they once got.
+        val percent = (state.position * 100).toInt().coerceIn(0, 100)
         binding.readerPercent.text = if (state.chapter.isBlank()) {
             getString(
                 R.string.reader_position,
@@ -1170,6 +1147,47 @@ class ReaderActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(pad, pad, pad, 0)
         }
+        // Declared first so anything below can close the menu as it acts.
+        var menu: AlertDialog? = null
+
+        // Where you are. Kept in the menu instead of drawn across the page: the
+        // reading screen is for reading, and the handle is a once-in-a-while tool.
+        val positionLabel = TextView(this).apply {
+            text = getString(
+                R.string.reader_position_menu,
+                viewModel.currentPage(),
+                viewModel.totalPages(),
+                (viewModel.state.value.position * 100).toInt().coerceIn(0, 100)
+            )
+            textSize = 14f
+        }
+        val positionSlider = SeekBar(this).apply {
+            max = 1000
+            progress = (viewModel.state.value.position * 1000).toInt().coerceIn(0, 1000)
+        }
+        positionSlider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(bar: SeekBar?, value: Int, fromUser: Boolean) {
+                if (!fromUser) return
+                positionLabel.text = getString(
+                    R.string.reader_position_menu,
+                    viewModel.pageAt(value / 1000.0),
+                    viewModel.totalPages(),
+                    value / 10
+                )
+            }
+
+            override fun onStartTrackingTouch(bar: SeekBar?) = Unit
+
+            override fun onStopTrackingTouch(bar: SeekBar?) {
+                // Jump on release: dragging across seven hundred pages would re-lay
+                // the book out on every pixel.
+                val ratio = (bar?.progress ?: 0) / 1000.0
+                menu?.dismiss()
+                goTo("Reader.goToRatio($ratio)")
+            }
+        })
+        rows.addView(positionLabel)
+        rows.addView(positionSlider)
 
         val current = brightness()
         val brightnessLabel = TextView(this).apply {
@@ -1194,7 +1212,6 @@ class ReaderActivity : AppCompatActivity() {
         rows.addView(slider)
         // A row closes the menu before opening its own dialog: the menu is a
         // choice, not a window to keep in the stack.
-        var menu: AlertDialog? = null
         fun row(textRes: Int, action: () -> Unit) {
             rows.addView(menuRow(getString(textRes)) { menu?.dismiss(); action() })
         }
@@ -1513,7 +1530,6 @@ class ReaderActivity : AppCompatActivity() {
         barsHidden = !barsHidden
         val visibility = if (barsHidden) View.GONE else View.VISIBLE
         binding.readerBar.visibility = visibility
-        binding.readerSeek.visibility = visibility
         binding.readerBottom.visibility = visibility
         // The system bars go too, or "clean screen" still has a clock in the corner.
         val controller = WindowCompat.getInsetsController(window, window.decorView)

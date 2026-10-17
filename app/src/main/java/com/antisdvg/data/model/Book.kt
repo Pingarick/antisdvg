@@ -21,7 +21,7 @@ data class Book(
     val currentPage: Int = 0,
     val readPages: Int = 0,
     val status: String = BookStatus.IN_PROGRESS,
-    val coverEmoji: String = "📖",
+    val coverEmoji: String = "",
     val startDate: Long = System.currentTimeMillis(),
     val finishDate: Long = 0L,
     val format: String = BookFormat.PAPER,

@@ -144,10 +144,10 @@ class ReadingFlowFragment : Fragment(R.layout.fragment_reading) {
                         binding.btnVoiceInput.text = "⏹ Остановить запись"
                     }
                     is com.antisdvg.util.VoiceInputHelper.State.Idle -> {
-                        binding.btnVoiceInput.text = "🎙️ Надиктовать пересказ голосом"
+                        binding.btnVoiceInput.text = "️ Надиктовать пересказ голосом"
                     }
                     is com.antisdvg.util.VoiceInputHelper.State.Error -> {
-                        binding.btnVoiceInput.text = "🎙️ Надиктовать пересказ голосом"
+                        binding.btnVoiceInput.text = "️ Надиктовать пересказ голосом"
                         android.widget.Toast.makeText(requireContext(), state.message, android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }
@@ -243,7 +243,7 @@ class ReadingFlowFragment : Fragment(R.layout.fragment_reading) {
                 binding.readingResultMinutes.visibility = View.GONE
             }
             VerifyState.NoKey -> {
-                binding.readingResultIcon.text = "🔑"
+                binding.readingResultIcon.text = ""
                 binding.readingResultText.text = getString(R.string.reader_error_key)
                 binding.readingResultMinutes.visibility = View.GONE
             }

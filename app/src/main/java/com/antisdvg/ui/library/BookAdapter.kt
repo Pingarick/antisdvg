@@ -116,9 +116,9 @@ class BookAdapter(
                     progress
                 )
             }
-            // 📱 marks a book that opens in the built-in reader.
+            // marks a book that opens in the built-in reader.
             binding.bookProgressText.text =
-                if (book.filePath.isNotBlank()) "📱 $progressText" else progressText
+                if (book.filePath.isNotBlank()) "$progressText" else progressText
         }
     }
 

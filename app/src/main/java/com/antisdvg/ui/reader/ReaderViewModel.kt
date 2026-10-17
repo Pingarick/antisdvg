@@ -44,8 +44,14 @@ data class ReaderUiState(
     val error: String? = null,
     /** Seconds the reader was on screen, awake and not idle. */
     val activeSeconds: Int = 0,
-    /** Furthest progress reached during this session, 0..1. */
+    /** Furthest progress reached during this session, 0..1 — what the session pays for. */
     val progress: Double = 0.0,
+    /**
+     * Where the reader is *now*, 0..1. It moves backwards when the reader goes
+     * back, unlike [progress]: showing the furthest point instead of the current
+     * one made a jump back look broken, because the handle snapped forward again.
+     */
+    val position: Double = 0.0,
     /** Exact page the paged layout is on, 1-based; 0 while it is unknown. */
     val page: Int = 0,
     /** Exact page count of the paged layout; 0 while it is unknown. */
@@ -189,7 +195,16 @@ class ReaderViewModel(
 
     fun noteProgress(progress: Double) {
         val value = progress.coerceIn(0.0, 1.0)
-        if (value > _state.value.progress) _state.update { it.copy(progress = value) }
+        val state = _state.value
+        if (value == state.position) return
+        _state.update {
+            it.copy(
+                // The reader's own place, which may go back, and the session's
+                // furthest point, which only the reward cares about.
+                position = value,
+                progress = maxOf(it.progress, value)
+            )
+        }
     }
 
     /**

@@ -609,7 +609,7 @@ class BlockerService : AccessibilityService() {
             Notification.Builder(this)
         }
         val notif = builder
-            .setContentTitle("Время зафиксировать чтение 📖")
+            .setContentTitle("Время зафиксировать чтение ")
             .setContentText("Вы читали около $minutes мин. Подтвердите прочитанные страницы в Anti-SDVG!")
             .setSmallIcon(R.drawable.ic_launcher)
             .setContentIntent(pendingIntent)
