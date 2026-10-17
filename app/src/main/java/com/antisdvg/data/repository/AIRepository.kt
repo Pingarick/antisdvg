@@ -22,8 +22,8 @@ class AIRepository {
         const val STRICTNESS_NORMAL = 1
         const val STRICTNESS_STRICT = 2
 
-        /** The quiz UI offers four answers; a question with fewer is unusable. */
-        private const val QUIZ_OPTIONS = 4
+        /** The quiz UI can show any number of answers; fewer than two is not a quiz. */
+        private const val MIN_QUIZ_OPTIONS = 2
 
         /** Longest passage sent for quizzing: ~14 screens of text. */
         private const val MAX_PASSAGE_CHARS = 12_000
@@ -209,10 +209,10 @@ class AIRepository {
                     }
                 }
                 val correctIndex = obj.optInt("correctIndex", 0)
-                // A question with fewer than four options, or an answer index
-                // outside them, cannot be graded — drop it here rather than
-                // showing the reader a question that has no right answer.
-                if (qText.isNotBlank() && options.size == QUIZ_OPTIONS &&
+                // A question the reader can grade: at least two answers, and a
+                // marked one among them. Anything else would be a question with
+                // no right answer, which is worse than one question fewer.
+                if (qText.isNotBlank() && options.size >= MIN_QUIZ_OPTIONS &&
                     correctIndex in options.indices
                 ) {
                     list.add(com.antisdvg.data.model.QuizQuestion(qText, options, correctIndex))

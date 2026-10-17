@@ -1,9 +1,20 @@
 import java.time.LocalDate
 
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
+}
+
+/** Reads a value from local.properties (gitignored), null when absent. */
+fun localProperty(name: String): String? {
+    val file = rootProject.file("local.properties")
+    if (!file.exists()) return null
+    val properties = Properties()
+    file.inputStream().use { properties.load(it) }
+    return properties.getProperty(name)
 }
 
 android {
@@ -30,18 +41,17 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // DeepSeek API key, baked into the app.
+        // DeepSeek API key: taken from local.properties (machine-local, gitignored)
+        // or from -PDEEPSEEK_API_KEY on the command line.
         //
-        // Until 2026-10-17 the key came only from ~/.gradle/gradle.properties so
-        // the secret never reached the repo. The owner then asked for it to ship
-        // inside the app ("пока что это только для меня, поэтому включай сразу
-        // этот ключ в приложение, потом если что уберём") — so the constant below
-        // is what the build uses, and it IS a secret in the sources and in git
-        // history. Override a build with -PDEEPSEEK_API_KEY=... ; the value in
-        // ~/.gradle is deliberately not consulted, it still holds the older key.
-        val builtInDeepSeekKey = "REDACTED_IN_HISTORY"
-        val deepSeekKey = project.gradle.startParameter.projectProperties["DEEPSEEK_API_KEY"]
-            ?: builtInDeepSeekKey
+        // It is still baked into the APK — the app has to carry it to work out of
+        // the box — but it is no longer in the sources or in git history: this
+        // repository has a public remote, and a key in the sources is a key
+        // published. A machine without the key still builds; the app then says so
+        // and the key can be pasted into its settings.
+        val deepSeekKey = localProperty("DEEPSEEK_API_KEY")
+            ?: project.gradle.startParameter.projectProperties["DEEPSEEK_API_KEY"]
+            ?: ""
         buildConfigField("String", "DEEPSEEK_API_KEY", "\"$deepSeekKey\"")
     }
 

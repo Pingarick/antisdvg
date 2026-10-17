@@ -99,16 +99,18 @@ class AIRepositoryTest {
     fun `parseQuizJson keeps only questions that can be graded`() {
         val json = """[
             {"question":"Хороший?","options":["а","б","в","г"],"correctIndex":2},
-            {"question":"Три варианта?","options":["а","б","в"],"correctIndex":1},
+            {"question":"Три варианта — тоже вопрос?","options":["а","б","в"],"correctIndex":1},
             {"question":"Индекс вне?","options":["а","б","в","г"],"correctIndex":7},
+            {"question":"Один вариант?","options":["а"],"correctIndex":0},
             {"question":"","options":["а","б","в","г"],"correctIndex":0}
         ]"""
 
         val quiz = repo.parseQuizJson(json)
 
-        assertEquals(1, quiz.size)
+        assertEquals(2, quiz.size)
         assertEquals("Хороший?", quiz[0].question)
         assertEquals(2, quiz[0].correctIndex)
+        assertEquals("Три варианта — тоже вопрос?", quiz[1].question)
     }
 
     @Test

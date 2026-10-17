@@ -128,10 +128,22 @@ class ReaderActivity : AppCompatActivity() {
     private fun screenDialog(configure: AlertDialog.Builder.() -> Unit): AlertDialog {
         val builder = AlertDialog.Builder(this).apply(configure)
         openDialogs++
+        // A dialog is not reading, and neither is being read to: the engine is
+        // stopped too, or it would keep turning pages and growing the set of
+        // "shown" screens while the clock stands still — the very thing the
+        // volume-key guard exists to prevent.
+        if (speaking) {
+            speechInterrupted = true
+            tts?.stop()
+        }
         builder.setOnDismissListener {
             openDialogs = (openDialogs - 1).coerceAtLeast(0)
             // The user just touched a dialog: reading resumes from here.
             lastActivityMs = SystemClock.elapsedRealtime()
+            if (speechInterrupted && speaking) {
+                speechInterrupted = false
+                speakCurrentPage()
+            }
         }
         return builder.show()
     }
@@ -153,6 +165,9 @@ class ReaderActivity : AppCompatActivity() {
     /** True while the book is being read aloud. */
     private var speaking = false
 
+    /** Set when a dialog interrupted the reading aloud, so it can carry on after. */
+    private var speechInterrupted = false
+
     /** Colors of the theme currently drawn, so the timer can dim itself when idle. */
     private var palette = paletteOf(ReaderTheme.PAPER)
 
@@ -162,8 +177,9 @@ class ReaderActivity : AppCompatActivity() {
     private val ticker = object : Runnable {
         override fun run() {
             // Listening is reading: while the book is being spoken the clock keeps
-            // running, even though nobody is touching the screen.
-            if (speaking) lastActivityMs = SystemClock.elapsedRealtime()
+            // running, even though nobody is touching the screen. Not while a
+            // dialog is up, though — that is not reading either.
+            if (speaking && !modalOpen) lastActivityMs = SystemClock.elapsedRealtime()
             // A dialog is not reading: while one owns the screen, the clock stops.
             val active = !modalOpen &&
                 SystemClock.elapsedRealtime() - lastActivityMs < IDLE_TIMEOUT_MS
@@ -296,6 +312,9 @@ class ReaderActivity : AppCompatActivity() {
             }
 
             override fun onError(utteranceId: String?) {
+                // Stopping for a dialog is reported as an error; that is not a
+                // failure, and the reading continues when the dialog closes.
+                if (speechInterrupted) return
                 handler.post { stopSpeech() }
             }
         })
@@ -320,6 +339,7 @@ class ReaderActivity : AppCompatActivity() {
     private fun stopSpeech(message: String? = null) {
         if (!speaking) return
         speaking = false
+        speechInterrupted = false
         tts?.stop()
         renderSpeechButton()
         message?.let { toast(it) }
@@ -340,7 +360,7 @@ class ReaderActivity : AppCompatActivity() {
 
     /** One screen is read out: turn the page and carry on, unless that was the last. */
     private fun speakNextPage() {
-        if (!speaking) return
+        if (!speaking || modalOpen) return
         binding.readerWeb.evaluateJavascript(
             "(function(){try{var s=Reader.state();return s.cur < s.total-1?'next':'last';}" +
                 "catch(e){return 'last';}})()"
@@ -753,25 +773,14 @@ class ReaderActivity : AppCompatActivity() {
                 markVisited();
               }
 
-              // Text of the visited screens, in reading order. A block starting
-              // inside page N belongs to it, so a paragraph spanning a page break
-              // is read once. Blocks are joined with a blank line, which keeps a
-              // sentence from ever being stitched together across two pages.
+              // Text of the visited screens, in reading order. Blocks are joined
+              // with a blank line, which keeps a sentence from ever being stitched
+              // together across two pages.
               function excerptText() {
-                var base = c.getBoundingClientRect().left;
-                var out = [];
-                var kids = c.children;
-                for (var i = 0; i < kids.length; i++) {
-                  var k = kids[i];
-                  var r = k.getBoundingClientRect();
-                  if (r.width <= 0 && r.height <= 0) { continue; }
-                  var col = clamp(Math.floor((r.left - base) / pageW + 0.001), 0, total - 1);
-                  if (visited[col]) {
-                    var t = (k.textContent || '').replace(/\s+/g, ' ').trim();
-                    if (t) { out.push(t); }
-                  }
-                }
-                return out.join('\n\n');
+                return contentBlocks()
+                  .filter(function (b) { return visited[b.col]; })
+                  .map(function (b) { return b.text; })
+                  .join('\n\n');
               }
 
               function report() {
@@ -787,22 +796,52 @@ class ReaderActivity : AppCompatActivity() {
               // plain text gets them guessed at import. One pass over the blocks,
               // so the table of contents costs nothing later.
               var tocEls = [], tocItems = [];
+
+              // Every block with its text and the column it sits in (-1 in ribbon,
+              // where "in a column" means "on screen"). The table of contents, the
+              // read excerpt and the spoken page all need exactly this, and used to
+              // walk the layout three times over.
+              function contentBlocks() {
+                var out = [];
+                var kids = c.children;
+                var i, rect, text;
+                if (!paged) {
+                  var vh = window.innerHeight;
+                  for (i = 0; i < kids.length; i++) {
+                    rect = kids[i].getBoundingClientRect();
+                    if (rect.bottom <= 0 || rect.top >= vh) { continue; }
+                    text = (kids[i].textContent || '').replace(/\s+/g, ' ').trim();
+                    if (text) { out.push({ el: kids[i], text: text, col: -1 }); }
+                  }
+                  return out;
+                }
+                var base = c.getBoundingClientRect().left;
+                for (i = 0; i < kids.length; i++) {
+                  rect = kids[i].getBoundingClientRect();
+                  if (rect.width <= 0 && rect.height <= 0) { continue; }
+                  out.push({
+                    el: kids[i],
+                    text: (kids[i].textContent || '').replace(/\s+/g, ' ').trim(),
+                    col: clamp(Math.floor((rect.left - base) / pageW + 0.001), 0, total - 1)
+                  });
+                }
+                return out;
+              }
+
               function buildToc() {
                 tocEls = [];
                 tocItems = [];
-                var base = c.getBoundingClientRect().left;
-                var kids = c.children;
-                for (var i = 0; i < kids.length; i++) {
-                  var k = kids[i];
-                  var tag = (k.tagName || '').toUpperCase();
+                var blocks = contentBlocks();
+                for (var i = 0; i < blocks.length; i++) {
+                  var tag = (blocks[i].el.tagName || '').toUpperCase();
                   if (tag !== 'H1' && tag !== 'H2' && tag !== 'H3') { continue; }
-                  var title = (k.textContent || '').replace(/\s+/g, ' ').trim();
-                  if (!title) { continue; }
-                  var r = k.getBoundingClientRect();
-                  var col = pageW > 0 ? Math.floor((r.left - base) / pageW + 0.001) : 0;
-                  tocEls.push(k);
-                  tocItems.push({ title: title, page: clamp(col, 0, total - 1) + 1,
-                                  level: tag === 'H1' ? 1 : (tag === 'H2' ? 2 : 3) });
+                  if (!blocks[i].text) { continue; }
+                  tocEls.push(blocks[i].el);
+                  tocItems.push({
+                    title: blocks[i].text,
+                    page: (blocks[i].col < 0 ? 0 : blocks[i].col) + 1,
+                    level: tag === 'H1' ? 1 : (tag === 'H2' ? 2 : 3)
+                  });
                 }
               }
 
@@ -909,31 +948,10 @@ class ReaderActivity : AppCompatActivity() {
 
               // Text of the screen in front of the reader, for reading aloud.
               function pageText() {
-                var out = [];
-                var kids = c.children;
-                if (paged) {
-                  var base = c.getBoundingClientRect().left;
-                  for (var i = 0; i < kids.length; i++) {
-                    var k = kids[i];
-                    var r = k.getBoundingClientRect();
-                    if (r.width <= 0 && r.height <= 0) { continue; }
-                    var col = clamp(Math.floor((r.left - base) / pageW + 0.001), 0, total - 1);
-                    if (col === cur) {
-                      var t = (k.textContent || '').replace(/\s+/g, ' ').trim();
-                      if (t) { out.push(t); }
-                    }
-                  }
-                  return out.join('\n\n');
-                }
-                // Ribbon: whatever is inside the viewport right now.
-                var vh = window.innerHeight;
-                for (var j = 0; j < kids.length; j++) {
-                  var rr = kids[j].getBoundingClientRect();
-                  if (rr.bottom <= 0 || rr.top >= vh) { continue; }
-                  var text = (kids[j].textContent || '').replace(/\s+/g, ' ').trim();
-                  if (text) { out.push(text); }
-                }
-                return out.join('\n\n');
+                return contentBlocks()
+                  .filter(function (b) { return !paged || b.col === cur; })
+                  .map(function (b) { return b.text; })
+                  .join('\n\n');
               }
 
               function goToRatio(r) {
@@ -1622,8 +1640,17 @@ class ReaderActivity : AppCompatActivity() {
                 preparedQuestions = viewModel.buildQuiz()
             } else {
                 aiUsed = true
-                viewModel.useQuestions(generated)
-                preparedQuestions = generated
+                // The model can answer with fewer usable questions than the reading
+                // deserves (it drops one, or malforms one). Top the test up from the
+                // same passage, so its size still follows the reading it announced.
+                val planned = viewModel.plannedQuestions()
+                val filled = if (generated.size < planned) {
+                    generated + viewModel.buildQuiz().take(planned - generated.size)
+                } else {
+                    generated
+                }
+                viewModel.useQuestions(filled)
+                preparedQuestions = filled
             }
             onReady(preparedQuestions?.size ?: 0)
         }
