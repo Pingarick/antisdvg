@@ -85,7 +85,9 @@ data class QuizOutcome(
     val correct: Int,
     val total: Int,
     val passed: Boolean,
-    val grantedMinutes: Int
+    val grantedMinutes: Int,
+    /** Question number (1-based) and the right answer, for what was missed. */
+    val missed: List<Pair<Int, String>> = emptyList()
 )
 
 /**
@@ -436,12 +438,13 @@ class ReaderViewModel(
     suspend fun gradeAndGrant(answers: List<Int>): QuizOutcome {
         val state = _state.value
         val book = state.book ?: return QuizOutcome(0, 0, false, 0)
-        val correct = questions.indices.count { i ->
-            answers.getOrNull(i) == questions[i].correctIndex
-        }
+        val missed = questions.indices
+            .filter { i -> answers.getOrNull(i) != questions[i].correctIndex }
+            .map { i -> (i + 1) to questions[i].options[questions[i].correctIndex] }
+        val correct = questions.size - missed.size
         val required = ReaderProgress.passThreshold(questions.size)
         val passed = questions.isNotEmpty() && correct >= required
-        if (!passed) return QuizOutcome(correct, questions.size, false, 0)
+        if (!passed) return QuizOutcome(correct, questions.size, false, 0, missed)
 
         val summary = summary()
         val earned = awardSession(book, summary)

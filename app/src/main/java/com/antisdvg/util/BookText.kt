@@ -33,6 +33,7 @@ object BookText {
     fun parse(input: InputStream, kind: String, fallbackTitle: String): ParsedBook =
         when (kind.uppercase()) {
             "FB2" -> parseFb2(input)
+            "EPUB" -> EpubBook.parse(input.readBytes(), fallbackTitle)
             else -> parseTxt(input, fallbackTitle)
         }
 
@@ -121,14 +122,29 @@ object BookText {
         "chapter", "part", "book", "prologue", "epilogue"
     )
 
-    private fun finish(
+    /**
+     * Collapses whitespace, including the non-breaking spaces EPUB is full of.
+     *
+     * Java's `\s` is ASCII-only, so `&nbsp;` would otherwise survive into the
+     * text — and a search for "моряком и" would not find "моряком\u00A0и".
+     */
+    internal fun squash(text: String): String = text
+        .replace('\u00A0', ' ')
+        .replace('\u2007', ' ')
+        .replace('\u2009', ' ')
+        .replace('\u200A', ' ')
+        .replace('\u202F', ' ')
+        .replace(Regex("\\s+"), " ")
+        .trim()
+
+    internal fun finish(
         title: String,
         author: String,
         coverUri: String,
         html: StringBuilder,
         text: StringBuilder
     ): ParsedBook {
-        val plain = text.toString().trim()
+        val plain = squash(text.toString())
         val pages = maxOf(1, Math.round(plain.length.toDouble() / CHARS_PER_PAGE).toInt())
         return ParsedBook(title, author, coverUri, plain, html.toString(), pages)
     }
@@ -152,7 +168,7 @@ object BookText {
     }
 
     private fun block(el: Element, tag: String, html: StringBuilder, text: StringBuilder) {
-        val value = el.textContent.trim()
+        val value = squash(el.textContent)
         if (value.isEmpty()) return
         html.append('<').append(tag).append('>').append(esc(value))
             .append("</").append(tag).append('>')

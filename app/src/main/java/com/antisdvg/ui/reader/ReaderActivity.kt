@@ -7,6 +7,8 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import android.util.Log
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -48,6 +50,7 @@ import kotlinx.coroutines.withTimeout
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
+import java.util.Locale
 
 /**
  * The built-in reader.
@@ -142,6 +145,14 @@ class ReaderActivity : AppCompatActivity() {
     /** Progress before the last jump, so search/contents can be undone in one tap. */
     private var placeBeforeJump: Double? = null
 
+    private var tts: TextToSpeech? = null
+
+    /** True once the engine answered and has a Russian voice. */
+    private var ttsReady = false
+
+    /** True while the book is being read aloud. */
+    private var speaking = false
+
     /** Colors of the theme currently drawn, so the timer can dim itself when idle. */
     private var palette = paletteOf(ReaderTheme.PAPER)
 
@@ -150,6 +161,9 @@ class ReaderActivity : AppCompatActivity() {
 
     private val ticker = object : Runnable {
         override fun run() {
+            // Listening is reading: while the book is being spoken the clock keeps
+            // running, even though nobody is touching the screen.
+            if (speaking) lastActivityMs = SystemClock.elapsedRealtime()
             // A dialog is not reading: while one owns the screen, the clock stops.
             val active = !modalOpen &&
                 SystemClock.elapsedRealtime() - lastActivityMs < IDLE_TIMEOUT_MS
@@ -199,6 +213,7 @@ class ReaderActivity : AppCompatActivity() {
 
         binding.readerClose.setOnClickListener { confirmExit() }
         binding.readerFinish.setOnClickListener { onFinishClicked() }
+        binding.readerTts.setOnClickListener { toggleSpeech() }
         binding.readerMenu.setOnClickListener { showReaderMenu() }
         binding.readerSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(bar: SeekBar?, value: Int, fromUser: Boolean) {
@@ -248,6 +263,115 @@ class ReaderActivity : AppCompatActivity() {
             }
         }
         lastActivityMs = SystemClock.elapsedRealtime()
+        prepareSpeech()
+    }
+
+    // ---- Reading aloud ----
+
+    /**
+     * Prepares the speech engine.
+     *
+     * The reader counts minutes while the book is in front of the reader, so
+     * listening — which is looking away — counts too, but only while this screen
+     * is open. That is why speech stops in [onPause]: the alternative is either
+     * counting silence or speaking for free, and both make the timer a lie.
+     */
+    private fun prepareSpeech() {
+        tts = TextToSpeech(this) { status ->
+            ttsReady = status == TextToSpeech.SUCCESS
+            if (ttsReady) {
+                val language = tts?.setLanguage(Locale("ru"))
+                // An English engine reading a Russian book is worse than silence.
+                ttsReady = language != TextToSpeech.LANG_MISSING_DATA &&
+                    language != TextToSpeech.LANG_NOT_SUPPORTED
+                tts?.setSpeechRate(speechRate())
+            }
+        }
+        tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onStart(utteranceId: String?) = Unit
+
+            override fun onDone(utteranceId: String?) {
+                // Reported from a background thread: come back to the main one.
+                handler.post { speakNextPage() }
+            }
+
+            override fun onError(utteranceId: String?) {
+                handler.post { stopSpeech() }
+            }
+        })
+    }
+
+    private fun speechRate(): Float = uiPrefs.getFloat(KEY_TTS_RATE, 1f)
+
+    private fun toggleSpeech() {
+        if (speaking) {
+            stopSpeech(getString(R.string.reader_tts_stopped))
+            return
+        }
+        if (!ttsReady) {
+            toast(getString(R.string.reader_tts_none))
+            return
+        }
+        speaking = true
+        renderSpeechButton()
+        speakCurrentPage()
+    }
+
+    private fun stopSpeech(message: String? = null) {
+        if (!speaking) return
+        speaking = false
+        tts?.stop()
+        renderSpeechButton()
+        message?.let { toast(it) }
+    }
+
+    /** Reads out what is on screen right now. */
+    private fun speakCurrentPage() {
+        if (!speaking) return
+        binding.readerWeb.evaluateJavascript("JSON.stringify(Reader.pageText())") { raw ->
+            val text = jsJson(raw) as? String
+            if (text.isNullOrBlank()) {
+                stopSpeech(getString(R.string.reader_tts_done))
+                return@evaluateJavascript
+            }
+            tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, UTTERANCE)
+        }
+    }
+
+    /** One screen is read out: turn the page and carry on, unless that was the last. */
+    private fun speakNextPage() {
+        if (!speaking) return
+        binding.readerWeb.evaluateJavascript(
+            "(function(){try{var s=Reader.state();return s.cur < s.total-1?'next':'last';}" +
+                "catch(e){return 'last';}})()"
+        ) { raw ->
+            // The wait covers the page-turn animation, so the next screen is laid
+            // out before its text is asked for.
+            if (raw?.contains("next") == true) {
+                evaluate("Reader.step(1)")
+                handler.postDelayed({ speakCurrentPage() }, PAGE_TURN_MS)
+            } else {
+                stopSpeech(getString(R.string.reader_tts_done))
+            }
+        }
+    }
+
+    private fun renderSpeechButton() {
+        binding.readerTts.text =
+            getString(if (speaking) R.string.reader_tts_pause else R.string.reader_tts_play)
+    }
+
+    private fun rateLabel(rate: Float): String =
+        if (rate % 1f == 0f) "${rate.toInt()}.0×" else "$rate×"
+
+    /** Walks through the handful of speeds people actually use. */
+    private fun cycleSpeechRate() {
+        val current = speechRate()
+        val index = SPEECH_RATES.indexOfFirst { it == current }.coerceAtLeast(0)
+        val next = SPEECH_RATES[(index + 1) % SPEECH_RATES.size]
+        uiPrefs.edit().putFloat(KEY_TTS_RATE, next).apply()
+        tts?.setSpeechRate(next)
+        toast(getString(R.string.reader_tts_speed, rateLabel(next)))
     }
 
     override fun onResume() {
@@ -259,7 +383,15 @@ class ReaderActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         handler.removeCallbacks(ticker)
+        // v1 rule: listening lives exactly as long as this screen does.
+        stopSpeech()
         viewModel.persistProgress()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        tts?.shutdown()
+        tts = null
     }
 
     override fun onStop() {
@@ -775,6 +907,35 @@ class ReaderActivity : AppCompatActivity() {
                 highlightBlock(index);
               }
 
+              // Text of the screen in front of the reader, for reading aloud.
+              function pageText() {
+                var out = [];
+                var kids = c.children;
+                if (paged) {
+                  var base = c.getBoundingClientRect().left;
+                  for (var i = 0; i < kids.length; i++) {
+                    var k = kids[i];
+                    var r = k.getBoundingClientRect();
+                    if (r.width <= 0 && r.height <= 0) { continue; }
+                    var col = clamp(Math.floor((r.left - base) / pageW + 0.001), 0, total - 1);
+                    if (col === cur) {
+                      var t = (k.textContent || '').replace(/\s+/g, ' ').trim();
+                      if (t) { out.push(t); }
+                    }
+                  }
+                  return out.join('\n\n');
+                }
+                // Ribbon: whatever is inside the viewport right now.
+                var vh = window.innerHeight;
+                for (var j = 0; j < kids.length; j++) {
+                  var rr = kids[j].getBoundingClientRect();
+                  if (rr.bottom <= 0 || rr.top >= vh) { continue; }
+                  var text = (kids[j].textContent || '').replace(/\s+/g, ' ').trim();
+                  if (text) { out.push(text); }
+                }
+                return out.join('\n\n');
+              }
+
               function goToRatio(r) {
                 var value = clamp(r, 0, 1);
                 if (paged) {
@@ -905,6 +1066,7 @@ class ReaderActivity : AppCompatActivity() {
                 step: step,
                 search: function (query) { return searchText(query, 50); },
                 goToHit: goToHit,
+                pageText: pageText,
                 // What the session should be judged on: the screens really shown
                 // and their text. Null in ribbon mode, where the reader has no
                 // pages of its own and Kotlin falls back to the progress range.
@@ -1016,7 +1178,7 @@ class ReaderActivity : AppCompatActivity() {
         // choice, not a window to keep in the stack.
         var menu: AlertDialog? = null
         fun row(textRes: Int, action: () -> Unit) {
-            rows.addView(menuRow(textRes) { menu?.dismiss(); action() })
+            rows.addView(menuRow(getString(textRes)) { menu?.dismiss(); action() })
         }
         row(R.string.reader_contents) { showContents() }
         row(R.string.reader_search) { showSearch() }
@@ -1028,6 +1190,10 @@ class ReaderActivity : AppCompatActivity() {
             uiPrefs.edit().putBoolean(KEY_AI_QUIZ, next).apply()
             toast(getString(if (next) R.string.reader_ai_on else R.string.reader_ai_off))
         }
+        rows.addView(menuRow(getString(R.string.reader_tts_speed, rateLabel(speechRate()))) {
+            menu?.dismiss()
+            cycleSpeechRate()
+        })
         row(
             if (volumeTurnsPages()) R.string.reader_volume_on else R.string.reader_volume_off
         ) {
@@ -1043,6 +1209,13 @@ class ReaderActivity : AppCompatActivity() {
             }
         }
         row(R.string.reader_clean_screen) { toggleBars() }
+        if (brightness() > 0f) {
+            rows.addView(menuRow(getString(R.string.reader_brightness_reset)) {
+                menu?.dismiss()
+                uiPrefs.edit().remove(KEY_BRIGHTNESS).apply()
+                window.attributes = window.attributes.apply { screenBrightness = -1f }
+            })
+        }
 
         menu = screenDialog {
             setTitle(R.string.reader_menu)
@@ -1051,8 +1224,8 @@ class ReaderActivity : AppCompatActivity() {
         }
     }
 
-    private fun menuRow(textRes: Int, onClick: () -> Unit): TextView = TextView(this).apply {
-        text = getString(textRes)
+    private fun menuRow(text: String, onClick: () -> Unit): TextView = TextView(this).apply {
+        this.text = text
         textSize = 16f
         val pad = (resources.displayMetrics.density * 12).toInt()
         setPadding(0, pad, 0, pad)
@@ -1674,9 +1847,18 @@ class ReaderActivity : AppCompatActivity() {
             return
         }
         val canRetry = attempts < MAX_ATTEMPTS
+        // After the last attempt there is nothing left to spoil, and knowing what
+        // was actually right is the whole point of a test.
+        val message = buildString {
+            append(getString(R.string.reader_quiz_fail, outcome.correct, questionCount))
+            if (!canRetry && outcome.missed.isNotEmpty()) {
+                val list = outcome.missed.joinToString(", ") { (number, answer) -> "$number) $answer" }
+                append("\n\n").append(getString(R.string.reader_quiz_review, list))
+            }
+        }
         screenDialog {
             setTitle(R.string.reader_quiz_title)
-            setMessage(getString(R.string.reader_quiz_fail, outcome.correct, questionCount))
+            setMessage(message)
             setPositiveButton(if (canRetry) R.string.reader_retry else R.string.reader_stay) { _, _ ->
                 if (canRetry) startQuiz() else backToReading()
             }
@@ -1712,6 +1894,18 @@ class ReaderActivity : AppCompatActivity() {
 
         /** Longest a reader waits for the AI before the offline test steps in. */
         private const val AI_TIMEOUT_MS = 15_000L
+
+        /** Speech speed the reader was left at. */
+        private const val KEY_TTS_RATE = "tts_rate"
+
+        /** Speeds offered by the menu row, in the order they are cycled. */
+        private val SPEECH_RATES = listOf(0.8f, 1f, 1.2f, 1.5f)
+
+        /** One utterance at a time: the id is only ever used to recognise our own. */
+        private const val UTTERANCE = "reader-page"
+
+        /** Wait after a page turn before asking for the next screen's text. */
+        private const val PAGE_TURN_MS = 350L
 
         /** Reading a full screen without touching it must not pause the timer. */
         private const val IDLE_TIMEOUT_MS = 180_000L

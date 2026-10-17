@@ -13,8 +13,8 @@ import java.util.zip.ZipInputStream
  * storage and extracts its metadata, so the built-in reader can open it later
  * without needing the original document permission.
  *
- * Supported: FB2 (XML), TXT (UTF-8 or windows-1251) and ZIP archives that hold
- * an FB2 inside — the `.fb2.zip` layout most RU libraries ship.
+ * Supported: FB2 (XML), TXT (UTF-8 or windows-1251), EPUB (a zip of XHTML) and
+ * ZIP archives that hold an FB2 — the `.fb2.zip` layout most RU libraries ship.
  */
 object BookImporter {
 
@@ -49,12 +49,21 @@ object BookImporter {
 
         val (file, finalKind) = when (kind) {
             Kind.ZIP -> {
-                val extracted = extractFb2(stash, booksDir) ?: throw UnsupportedFormatException()
-                stash.delete()
-                extracted to "FB2"
+                // A plain zip may still be an EPUB in disguise: some libraries
+                // ship .epub renamed, and a few ship .zip holding one.
+                val extracted = extractFb2(stash, booksDir)
+                if (extracted != null) {
+                    stash.delete()
+                    extracted to "FB2"
+                } else if (looksLikeEpub(stash)) {
+                    rename(stash, "epub") to "EPUB"
+                } else {
+                    throw UnsupportedFormatException()
+                }
             }
             Kind.FB2 -> rename(stash, "fb2") to "FB2"
             Kind.TXT -> rename(stash, "txt") to "TXT"
+            Kind.EPUB -> rename(stash, "epub") to "EPUB"
         }
 
         val parsed = file.inputStream().use { stream ->
@@ -89,6 +98,21 @@ object BookImporter {
         }.getOrNull()
     }
 
+    /** Does this archive hold an EPUB rather than an FB2? */
+    internal fun looksLikeEpub(file: File): Boolean = runCatching {
+        ZipInputStream(file.inputStream().buffered()).use { zip ->
+            var entry = zip.nextEntry
+            var checked = 0
+            while (entry != null && checked < 8) {
+                val name = entry.name.lowercase()
+                if (name == "meta-inf/container.xml" || name == "mimetype") return@use true
+                checked++
+                entry = zip.nextEntry
+            }
+            false
+        }
+    }.getOrDefault(false)
+
     private fun rename(file: File, ext: String): File {
         val target = File(file.parentFile, "${UUID.randomUUID()}.$ext")
         return if (file.renameTo(target)) target else file
@@ -109,13 +133,14 @@ object BookImporter {
         }
     }
 
-    private enum class Kind { FB2, TXT, ZIP }
+    private enum class Kind { FB2, TXT, ZIP, EPUB }
 
     /** Testable mapping from a file name/MIME to the supported container kinds. */
     fun detectKindName(displayName: String, mimeType: String?): String? = when (detectKind(displayName, mimeType)) {
         Kind.FB2 -> "FB2"
         Kind.TXT -> "TXT"
         Kind.ZIP -> "ZIP"
+        Kind.EPUB -> "EPUB"
         null -> null
     }
 
@@ -123,9 +148,11 @@ object BookImporter {
         val name = displayName.lowercase()
         val mime = mimeType.orEmpty().lowercase()
         return when {
+            name.endsWith(".epub") -> Kind.EPUB
             name.endsWith(".fb2") -> Kind.FB2
             name.endsWith(".txt") -> Kind.TXT
             name.endsWith(".fb2.zip") || name.endsWith(".zip") -> Kind.ZIP
+            mime.contains("epub") -> Kind.EPUB
             mime.contains("fb2") -> Kind.FB2
             mime == "text/plain" -> Kind.TXT
             mime.contains("zip") -> Kind.ZIP
