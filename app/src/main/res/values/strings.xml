@@ -335,6 +335,8 @@
     <string name="reader_bookmarks">Закладки</string>
     <string name="reader_bookmarks_empty">Закладок пока нет. Жми «Добавить закладку», чтобы запомнить место.</string>
     <string name="reader_bookmark_add">Добавить закладку</string>
+    <string name="reader_bookmark_name_hint">название (по умолчанию — глава)</string>
+    <string name="reader_seek_hint">Позиция в книге</string>
     <string name="reader_bookmark_added">Закладка на стр. %1$d</string>
     <string name="reader_bookmark_deleted">Закладка на стр. %1$d удалена</string>
     <string name="reader_bookmark_goto">стр. %1$d</string>

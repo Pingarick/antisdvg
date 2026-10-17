@@ -137,6 +137,7 @@
         android:id="@+id/reader_seek"
         android:layout_width="match_parent"
         android:layout_height="36dp"
+        android:contentDescription="@string/reader_seek_hint"
         android:max="1000"
         android:paddingStart="12dp"
         android:paddingEnd="12dp"

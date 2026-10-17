@@ -16,7 +16,6 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.EditText
-import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
@@ -99,8 +98,30 @@ class ReaderActivity : AppCompatActivity() {
     /** True while the test being graded belongs to a postponed session. */
     private var claiming = false
 
-    /** True while a dialog owns the screen, so its seconds are not reading time. */
-    private var modalOpen = false
+    /**
+     * How many of this screen's dialogs are on top of it.
+     *
+     * Reading time and the volume keys stop while any of them is up: a dialog is
+     * not reading, and turning pages behind a test would quietly grow the set of
+     * pages the session claims to have shown. A counter rather than a flag, so a
+     * dialog opened from another dialog cannot clear the state of the one still
+     * being shown underneath.
+     */
+    private var openDialogs = 0
+
+    private val modalOpen: Boolean get() = openDialogs > 0
+
+    /** Shows a dialog that owns the clock while it is up. */
+    private fun screenDialog(configure: AlertDialog.Builder.() -> Unit): AlertDialog {
+        val builder = AlertDialog.Builder(this).apply(configure)
+        openDialogs++
+        builder.setOnDismissListener {
+            openDialogs = (openDialogs - 1).coerceAtLeast(0)
+            // The user just touched a dialog: reading resumes from here.
+            lastActivityMs = SystemClock.elapsedRealtime()
+        }
+        return builder.show()
+    }
 
     /** True while the progress slider is being dragged, so it is not fought over. */
     private var seeking = false
@@ -186,9 +207,7 @@ class ReaderActivity : AppCompatActivity() {
                 // Jump on release only: dragging across 900 pages would otherwise
                 // re-lay the book out hundreds of times.
                 seeking = false
-                lastActivityMs = SystemClock.elapsedRealtime()
-                rememberPlace()
-                evaluate("Reader.goToRatio(${(bar?.progress ?: 0) / 1000.0})")
+                goTo("Reader.goToRatio(${(bar?.progress ?: 0) / 1000.0})")
             }
         })
         binding.readerTheme.setOnClickListener {
@@ -645,13 +664,22 @@ class ReaderActivity : AppCompatActivity() {
                 }
               }
 
-              // Where in the book the reader currently is: the last heading above
-              // the current screen. Empty in ribbon mode, which has no columns.
+              // Where in the book the reader currently is.
+              //
+              // Paged: the last heading above the current screen. Ribbon: the last
+              // heading scrolled past the top edge — different question, same
+              // answer the footer wants.
               function chapterName() {
-                if (!paged || !tocItems.length) { return ''; }
+                if (!tocItems.length) { return ''; }
                 var name = '';
-                for (var i = 0; i < tocItems.length; i++) {
-                  if (tocItems[i].page - 1 <= cur) { name = tocItems[i].title; } else { break; }
+                if (paged) {
+                  for (var i = 0; i < tocItems.length; i++) {
+                    if (tocItems[i].page - 1 <= cur) { name = tocItems[i].title; } else { break; }
+                  }
+                  return name;
+                }
+                for (var j = 0; j < tocEls.length; j++) {
+                  if (tocEls[j].getBoundingClientRect().top <= 2) { name = tocItems[j].title; } else { break; }
                 }
                 return name;
               }
@@ -798,6 +826,7 @@ class ReaderActivity : AppCompatActivity() {
                   ticking = false;
                   var r = scrollRatio();
                   if (r > last + 0.0005) { last = r; ReaderBridge.onProgress(r); }
+                  ReaderBridge.onChapter(chapterName());
                 }, 200);
               }, { passive: true });
 
@@ -973,36 +1002,38 @@ class ReaderActivity : AppCompatActivity() {
         })
         rows.addView(brightnessLabel)
         rows.addView(slider)
-        rows.addView(menuRow(R.string.reader_contents) { showContents() })
-        rows.addView(menuRow(R.string.reader_search) { showSearch() })
-        rows.addView(menuRow(R.string.reader_jump) { showJumpDialog() })
-        rows.addView(menuRow(R.string.reader_bookmark_add) { addBookmark() })
-        rows.addView(menuRow(R.string.reader_bookmarks) { showBookmarks() })
-        rows.addView(
-            menuRow(
-                if (volumeTurnsPages()) R.string.reader_volume_on else R.string.reader_volume_off
-            ) {
-                val next = !volumeTurnsPages()
-                uiPrefs.edit().putBoolean(KEY_VOLUME_TURN, next).apply()
-                toast(
-                    getString(if (next) R.string.reader_volume_on else R.string.reader_volume_off)
-                )
-            }
-        )
-        placeBeforeJump?.let { back ->
-            rows.addView(menuRow(R.string.reader_back) {
-                placeBeforeJump = null
-                evaluate("Reader.goToRatio($back)")
-                lastActivityMs = SystemClock.elapsedRealtime()
-            })
+        // A row closes the menu before opening its own dialog: the menu is a
+        // choice, not a window to keep in the stack.
+        var menu: AlertDialog? = null
+        fun row(textRes: Int, action: () -> Unit) {
+            rows.addView(menuRow(textRes) { menu?.dismiss(); action() })
         }
-        rows.addView(menuRow(R.string.reader_clean_screen) { toggleBars() })
+        row(R.string.reader_contents) { showContents() }
+        row(R.string.reader_search) { showSearch() }
+        row(R.string.reader_jump) { showJumpDialog() }
+        row(R.string.reader_bookmark_add) { addBookmark() }
+        row(R.string.reader_bookmarks) { showBookmarks() }
+        row(
+            if (volumeTurnsPages()) R.string.reader_volume_on else R.string.reader_volume_off
+        ) {
+            val next = !volumeTurnsPages()
+            uiPrefs.edit().putBoolean(KEY_VOLUME_TURN, next).apply()
+            toast(getString(if (next) R.string.reader_volume_on else R.string.reader_volume_off))
+        }
+        placeBeforeJump?.let { back ->
+            row(R.string.reader_back) {
+                placeBeforeJump = null
+                lastActivityMs = SystemClock.elapsedRealtime()
+                evaluate("Reader.goToRatio($back)")
+            }
+        }
+        row(R.string.reader_clean_screen) { toggleBars() }
 
-        AlertDialog.Builder(this)
-            .setTitle(R.string.reader_menu)
-            .setView(rows)
-            .setPositiveButton(android.R.string.ok, null)
-            .show()
+        menu = screenDialog {
+            setTitle(R.string.reader_menu)
+            setView(rows)
+            setPositiveButton(android.R.string.ok, null)
+        }
     }
 
     private fun menuRow(textRes: Int, onClick: () -> Unit): TextView = TextView(this).apply {
@@ -1014,83 +1045,94 @@ class ReaderActivity : AppCompatActivity() {
         setOnClickListener { onClick() }
     }
 
+    /**
+     * Reads a value the page returned through [WebView.evaluateJavascript].
+     *
+     * The bridge answers with JSON, and a `JSON.stringify`ed answer arrives
+     * quoted, so every parse of page data starts here and unwraps once.
+     */
+    private fun jsJson(raw: String?): Any? {
+        if (raw.isNullOrBlank() || raw == "null") return null
+        val first = runCatching { JSONTokener(raw).nextValue() }.getOrNull() ?: return null
+        if (first is String) {
+            return runCatching { JSONTokener(first).nextValue() }.getOrNull()
+        }
+        return first
+    }
+
     /** The table of contents the page itself built from the book's headings. */
     private fun showContents() {
         binding.readerWeb.evaluateJavascript("Reader.toc()") { raw ->
-            val items = parseToc(raw)
+            val array = jsJson(raw) as? JSONArray
+            val items = array?.let {
+                (0 until it.length()).mapNotNull { i ->
+                    val item = it.optJSONObject(i) ?: return@mapNotNull null
+                    val title = item.optString("title")
+                    if (title.isBlank()) null else TocItem(title, item.optInt("page", 1), i)
+                }
+            }.orEmpty()
             if (items.isEmpty()) {
                 infoDialog(getString(R.string.reader_contents), getString(R.string.reader_contents_empty))
                 return@evaluateJavascript
             }
-            AlertDialog.Builder(this)
-                .setTitle(R.string.reader_contents)
-                .setItems(
-                    items.map { item ->
-                        // The chapter you are in is marked: a list of sixty titles
-                        // otherwise says nothing about where you are.
-                        if (item.title == viewModel.state.value.chapter) {
-                            getString(R.string.reader_toc_current, item.title)
-                        } else {
-                            item.title
-                        }
+            val current = viewModel.state.value.chapter
+            screenDialog {
+                setTitle(R.string.reader_contents)
+                // The chapter you are in is marked: a list of sixty titles
+                // otherwise says nothing about where you are.
+                setItems(
+                    items.map {
+                        if (it.title == current) getString(R.string.reader_toc_current, it.title)
+                        else it.title
                     }.toTypedArray()
-                ) { _, which -> jumpToItem(items[which]) }
-                .setNegativeButton(R.string.reader_stay, null)
-                .show()
+                ) { _, which -> jumpToHeading(items[which].index) }
+                setNegativeButton(R.string.reader_stay, null)
+            }
         }
     }
 
     private data class TocItem(val title: String, val page: Int, val index: Int)
 
-    private fun parseToc(raw: String?): List<TocItem> {
-        if (raw.isNullOrBlank() || raw == "null") return emptyList()
-        val json = runCatching {
-            val text = if (raw.startsWith("\"")) JSONTokener(raw).nextValue() as String else raw
-            JSONArray(text)
-        }.getOrNull() ?: return emptyList()
-        return (0 until json.length()).mapNotNull { i ->
-            val item = json.optJSONObject(i) ?: return@mapNotNull null
-            val title = item.optString("title")
-            if (title.isBlank()) null else TocItem(title, item.optInt("page", 1), i)
-        }
+    /**
+     * Goes somewhere in the book, remembering where the reader was first: a jump
+     * of four hundred pages must be one tap to undo, not another search.
+     */
+    private fun goTo(js: String) {
+        if (placeBeforeJump == null) placeBeforeJump = viewModel.state.value.progress
+        lastActivityMs = SystemClock.elapsedRealtime()
+        evaluate(js)
     }
 
     /**
      * Jumps by heading index, not by the page number in the list: the list may be
      * a font change older than the layout, while the heading itself never moves.
      */
-    private fun jumpToItem(item: TocItem) {
-        rememberPlace()
-        evaluate("Reader.goToHeading(${item.index})")
-        lastActivityMs = SystemClock.elapsedRealtime()
-    }
+    private fun jumpToHeading(index: Int) = goTo("Reader.goToHeading($index)")
 
-    /**
-     * Where the reader was before jumping, so a search that went 400 pages away
-     * can be undone in one tap instead of another search.
-     */
-    private fun rememberPlace() {
-        if (placeBeforeJump == null) placeBeforeJump = viewModel.state.value.progress
+    /** Text field with the reader's own padding, for the small dialogs. */
+    private fun inputField(hintText: String, inputType: Int, initial: String = ""): EditText {
+        val pad = (resources.displayMetrics.density * 20).toInt()
+        return EditText(this).apply {
+            hint = hintText
+            this.inputType = inputType
+            maxLines = 1
+            setText(initial)
+            setPadding(pad, pad / 2, pad, pad / 2)
+        }
     }
 
     /** Finds a phrase in the book and takes the reader to it. */
     private fun showSearch() {
-        val input = EditText(this).apply {
-            hint = getString(R.string.reader_search_hint)
-            inputType = android.text.InputType.TYPE_CLASS_TEXT
-            maxLines = 1
+        val input = inputField(
+            getString(R.string.reader_search_hint),
+            android.text.InputType.TYPE_CLASS_TEXT
+        )
+        screenDialog {
+            setTitle(R.string.reader_search)
+            setView(input)
+            setPositiveButton(R.string.reader_search_go) { _, _ -> runSearch(input.text.toString()) }
+            setNegativeButton(R.string.reader_stay, null)
         }
-        val pad = (resources.displayMetrics.density * 20).toInt()
-        val wrapper = FrameLayout(this).apply {
-            setPadding(pad, pad / 2, pad, 0)
-            addView(input)
-        }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.reader_search)
-            .setView(wrapper)
-            .setPositiveButton(R.string.reader_search_go) { _, _ -> runSearch(input.text.toString()) }
-            .setNegativeButton(R.string.reader_stay, null)
-            .show()
     }
 
     private fun runSearch(query: String) {
@@ -1098,141 +1140,144 @@ class ReaderActivity : AppCompatActivity() {
         binding.readerWeb.evaluateJavascript(
             "JSON.stringify(Reader.search(${JSONObject.quote(query)}))"
         ) { raw ->
-            val found = parseHits(raw)
-            if (found.hits.isEmpty()) {
+            val json = jsJson(raw) as? JSONObject
+            val array = json?.optJSONArray("hits") ?: JSONArray()
+            val hits = (0 until array.length()).mapNotNull { i ->
+                val item = array.optJSONObject(i) ?: return@mapNotNull null
+                val snippet = item.optString("snippet")
+                if (snippet.isBlank()) {
+                    null
+                } else {
+                    SearchHit(item.optInt("page", 1), snippet, item.optInt("index", -1))
+                }
+            }
+            if (hits.isEmpty()) {
                 infoDialog(
                     getString(R.string.reader_search),
                     getString(R.string.reader_search_none, query.trim())
                 )
                 return@evaluateJavascript
             }
-            val title = if (found.more) {
-                getString(R.string.reader_search_results_more, found.hits.size)
-            } else {
-                getString(R.string.reader_search_results, found.hits.size)
-            }
-            AlertDialog.Builder(this)
-                .setTitle(title)
-                .setItems(found.hits.map { getString(R.string.reader_search_hit, it.snippet, it.page) }.toTypedArray()) { _, which ->
-                    val hit = found.hits[which]
-                    rememberPlace()
+            val more = json?.optBoolean("more", false) == true
+            screenDialog {
+                setTitle(
+                    if (more) getString(R.string.reader_search_results_more, hits.size)
+                    else getString(R.string.reader_search_results, hits.size)
+                )
+                setItems(
+                    hits.map { getString(R.string.reader_search_hit, it.snippet, it.page) }
+                        .toTypedArray()
+                ) { _, which ->
                     // By block, so the page is right even after a font change.
-                    evaluate("Reader.goToHit(${hit.index})")
-                    lastActivityMs = SystemClock.elapsedRealtime()
+                    goTo("Reader.goToHit(${hits[which].index})")
                 }
-                .setNegativeButton(R.string.reader_stay, null)
-                .show()
+                setNegativeButton(R.string.reader_stay, null)
+            }
         }
     }
 
     private data class SearchHit(val page: Int, val snippet: String, val index: Int)
 
-    private data class SearchFound(val hits: List<SearchHit>, val more: Boolean)
-
-    private fun parseHits(raw: String?): SearchFound {
-        if (raw.isNullOrBlank() || raw == "null") return SearchFound(emptyList(), false)
-        val json = runCatching {
-            val text = if (raw.startsWith("\"")) JSONTokener(raw).nextValue() as String else raw
-            JSONObject(text)
-        }.getOrNull() ?: return SearchFound(emptyList(), false)
-        val array = json.optJSONArray("hits") ?: JSONArray()
-        val hits = (0 until array.length()).mapNotNull { i ->
-            val item = array.optJSONObject(i) ?: return@mapNotNull null
-            val snippet = item.optString("snippet")
-            if (snippet.isBlank()) null else SearchHit(item.optInt("page", 1), snippet, item.optInt("index", -1))
-        }
-        return SearchFound(hits, json.optBoolean("more", false))
-    }
-
     private fun showJumpDialog() {
         val total = viewModel.totalPages()
-        val input = EditText(this).apply {
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            hint = getString(R.string.reader_jump_title, total)
-        }
-        val pad = (resources.displayMetrics.density * 20).toInt()
-        val wrapper = FrameLayout(this).apply {
-            setPadding(pad, pad / 2, pad, 0)
-            addView(input)
-        }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.reader_jump)
-            .setView(wrapper)
-            .setPositiveButton(R.string.reader_jump_go) { _, _ ->
+        val input = inputField(
+            getString(R.string.reader_jump_title, total),
+            android.text.InputType.TYPE_CLASS_NUMBER
+        )
+        screenDialog {
+            setTitle(R.string.reader_jump)
+            setView(input)
+            setPositiveButton(R.string.reader_jump_go) { _, _ ->
                 val page = input.text.toString().toIntOrNull() ?: return@setPositiveButton
                 if (viewModel.state.value.mode == ReaderMode.PAGED) {
-                    evaluate("Reader.goToPage(${page.coerceIn(1, total)})")
+                    goTo("Reader.goToPage(${page.coerceIn(1, total)})")
                 } else {
                     val ratio = (page - 1).coerceAtLeast(0).toDouble() / (total - 1).coerceAtLeast(1)
-                    evaluate("Reader.goToRatio(${ratio.coerceIn(0.0, 1.0)})")
+                    goTo("Reader.goToRatio(${ratio.coerceIn(0.0, 1.0)})")
                 }
-                lastActivityMs = SystemClock.elapsedRealtime()
             }
-            .setNegativeButton(R.string.reader_stay, null)
-            .show()
+            setNegativeButton(R.string.reader_stay, null)
+        }
     }
 
-    /** Remembers this place. The page number is for the label, progress for the jump. */
+    /**
+     * Remembers this place. The page is for the label, the progress for the jump,
+     * and the name is whatever the reader wants to find it by later — the chapter
+     * is a decent default, so the dialog can be dismissed with one tap.
+     */
     private fun addBookmark() {
         val state = viewModel.state.value
         val book = state.book ?: return
         val page = viewModel.currentPage()
-        // The chapter travels with the bookmark: "стр. 120" alone says nothing.
-        lifecycleScope.launch {
-            repo.addBookmark(book.id, state.progress, page, state.chapter)
-            toast(getString(R.string.reader_bookmark_added, page))
+        val input = inputField(
+            getString(R.string.reader_bookmark_name_hint),
+            android.text.InputType.TYPE_CLASS_TEXT,
+            state.chapter
+        )
+        screenDialog {
+            setTitle(R.string.reader_bookmark_add)
+            setView(input)
+            setPositiveButton(R.string.reader_bookmark_add) { _, _ ->
+                val name = input.text.toString().trim()
+                lifecycleScope.launch {
+                    repo.addBookmark(book.id, state.progress, page, name)
+                    toast(getString(R.string.reader_bookmark_added, page))
+                }
+            }
+            setNegativeButton(R.string.reader_stay, null)
         }
     }
 
-    private fun bookmarkLabel(mark: Bookmark): String =
-        if (mark.label.isBlank()) {
-            getString(R.string.reader_bookmark_goto, mark.page)
+    private fun bookmarkLabels(marks: List<Bookmark>): Array<String> = marks.map {
+        if (it.label.isBlank()) {
+            getString(R.string.reader_bookmark_goto, it.page)
         } else {
-            getString(R.string.reader_bookmark_labeled, mark.label, mark.page)
+            getString(R.string.reader_bookmark_labeled, it.label, it.page)
         }
+    }.toTypedArray()
 
     private fun showBookmarks() {
         val book = viewModel.state.value.book ?: return
         lifecycleScope.launch {
             val marks = repo.bookmarks(book.id)
             if (marks.isEmpty()) {
-                infoDialog(getString(R.string.reader_bookmarks), getString(R.string.reader_bookmarks_empty))
+                infoDialog(
+                    getString(R.string.reader_bookmarks),
+                    getString(R.string.reader_bookmarks_empty)
+                )
                 return@launch
             }
-            AlertDialog.Builder(this@ReaderActivity)
-                .setTitle(R.string.reader_bookmarks)
-                .setItems(marks.map { bookmarkLabel(it) }.toTypedArray()) { _, which ->
-                    val mark = marks[which]
-                    rememberPlace()
-                    evaluate("Reader.goToRatio(${mark.progress})")
-                    lastActivityMs = SystemClock.elapsedRealtime()
+            screenDialog {
+                setTitle(R.string.reader_bookmarks)
+                setItems(bookmarkLabels(marks)) { _, which ->
+                    goTo("Reader.goToRatio(${marks[which].progress})")
                 }
-                .setNeutralButton(R.string.reader_bookmark_delete) { _, _ -> showDeleteBookmark(marks) }
-                .setNegativeButton(R.string.reader_stay, null)
-                .show()
+                setNeutralButton(R.string.reader_bookmark_delete) { _, _ -> showDeleteBookmark(marks) }
+                setNegativeButton(R.string.reader_stay, null)
+            }
         }
     }
 
     private fun showDeleteBookmark(marks: List<Bookmark>) {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.reader_bookmark_delete)
-            .setItems(marks.map { bookmarkLabel(it) }.toTypedArray()) { _, which ->
+        screenDialog {
+            setTitle(R.string.reader_bookmark_delete)
+            setItems(bookmarkLabels(marks)) { _, which ->
                 val mark = marks[which]
                 lifecycleScope.launch {
                     repo.deleteBookmark(mark.id)
                     toast(getString(R.string.reader_bookmark_deleted, mark.page))
                 }
             }
-            .setNegativeButton(R.string.reader_stay, null)
-            .show()
+            setNegativeButton(R.string.reader_stay, null)
+        }
     }
 
     private fun infoDialog(title: String, message: String) {
-        AlertDialog.Builder(this)
-            .setTitle(title)
-            .setMessage(message)
-            .setPositiveButton(android.R.string.ok, null)
-            .show()
+        screenDialog {
+            setTitle(title)
+            setMessage(message)
+            setPositiveButton(android.R.string.ok, null)
+        }
     }
 
     private fun brightness(): Float = uiPrefs.getFloat(KEY_BRIGHTNESS, -1f)
@@ -1315,23 +1360,23 @@ class ReaderActivity : AppCompatActivity() {
         } else {
             getString(R.string.reader_exit_message, viewModel.expectedMinutes())
         }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.reader_exit_title)
-            .setMessage(message)
-            .setPositiveButton(R.string.reader_stay, null)
-            .setNegativeButton(R.string.reader_exit) { _, _ -> exitWithoutMinutes() }
-            .show()
+        screenDialog {
+            setTitle(R.string.reader_exit_title)
+            setMessage(message)
+            setPositiveButton(R.string.reader_stay, null)
+            setNegativeButton(R.string.reader_exit) { _, _ -> exitWithoutMinutes() }
+        }
     }
 
     private fun onFinishClicked() {
         viewModel.persistProgress()
         if (viewModel.isTooShort()) {
-            AlertDialog.Builder(this)
-                .setTitle(R.string.reader_too_short_title)
-                .setMessage(R.string.reader_too_short)
-                .setPositiveButton(R.string.reader_stay, null)
-                .setNegativeButton(R.string.reader_exit) { _, _ -> exitWithoutMinutes() }
-                .show()
+            screenDialog {
+                setTitle(R.string.reader_too_short_title)
+                setMessage(R.string.reader_too_short)
+                setPositiveButton(R.string.reader_stay, null)
+                setNegativeButton(R.string.reader_exit) { _, _ -> exitWithoutMinutes() }
+            }
             return
         }
         // The layout is the only thing that knows which screens were actually
@@ -1379,10 +1424,10 @@ class ReaderActivity : AppCompatActivity() {
         } else {
             getString(R.string.reader_summary_no_test, viewModel.totalPages(), earned)
         }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.reader_summary_title)
-            .setMessage("$read\n\n$ask")
-            .setPositiveButton(
+        screenDialog {
+            setTitle(R.string.reader_summary_title)
+            setMessage("$read\n\n$ask")
+            setPositiveButton(
                 if (questionCount > 0) R.string.reader_take_test else R.string.reader_take_minutes
             ) { _, _ ->
                 if (questionCount > 0) {
@@ -1391,9 +1436,9 @@ class ReaderActivity : AppCompatActivity() {
                     lifecycleScope.launch { award(viewModel.grantWithoutQuiz(), 0) }
                 }
             }
-            .setNeutralButton(R.string.reader_stay) { _, _ -> backToReading() }
-            .setNegativeButton(R.string.reader_exit) { _, _ -> exitWithoutMinutes() }
-            .show()
+            setNeutralButton(R.string.reader_stay) { _, _ -> backToReading() }
+            setNegativeButton(R.string.reader_exit) { _, _ -> exitWithoutMinutes() }
+        }
     }
 
     /**
@@ -1416,32 +1461,22 @@ class ReaderActivity : AppCompatActivity() {
                 earned
             )
         }
-        modalOpen = true
-        AlertDialog.Builder(this)
-            .setTitle(R.string.reader_pending_title)
-            .setMessage(message)
-            .setPositiveButton(R.string.reader_take_test) { _, _ -> claimPending(claim) }
-            .setNeutralButton(R.string.reader_pending_later) { _, _ -> onPendingAnswered() }
-            .setNegativeButton(R.string.reader_pending_forget) { _, _ ->
+        screenDialog {
+            setTitle(R.string.reader_pending_title)
+            setMessage(message)
+            setPositiveButton(R.string.reader_take_test) { _, _ -> claimPending(claim) }
+            setNeutralButton(R.string.reader_pending_later, null)
+            setNegativeButton(R.string.reader_pending_forget) { _, _ ->
                 pendingStore.remove(claim.bookId)
-                onPendingAnswered()
             }
-            .setOnCancelListener { onPendingAnswered() }
-            .show()
+        }
     }
 
     /** The postponed test runs on the session it kept, not on the live clock. */
     private fun claimPending(claim: PendingSession) {
         claiming = true
         viewModel.beginPending(claim)
-        onPendingAnswered()
         startQuiz()
-    }
-
-    private fun onPendingAnswered() {
-        modalOpen = false
-        // The user just touched the dialog; reading resumes from here.
-        lastActivityMs = SystemClock.elapsedRealtime()
     }
 
     /**
@@ -1473,19 +1508,15 @@ class ReaderActivity : AppCompatActivity() {
     }
 
     private fun parseExcerpt(raw: String?): ReadExcerpt? {
-        if (raw == null || raw == "null" || raw.length < 4) return null
-        return runCatching {
-            // evaluateJavascript answers with JSON; a string comes quoted.
-            val json = JSONObject(JSONTokener(raw).nextValue() as String)
-            val text = json.optString("text")
-            if (text.isBlank()) return null
-            ReadExcerpt(
-                text = text,
-                fromPage = json.optInt("fromPage", 1),
-                toPage = json.optInt("toPage", 1),
-                pages = json.optInt("pages", 1)
-            )
-        }.getOrNull()
+        val json = jsJson(raw) as? JSONObject ?: return null
+        val text = json.optString("text")
+        if (text.isBlank()) return null
+        return ReadExcerpt(
+            text = text,
+            fromPage = json.optInt("fromPage", 1),
+            toPage = json.optInt("toPage", 1),
+            pages = json.optInt("pages", 1)
+        )
     }
 
     private fun startQuiz() {
@@ -1539,26 +1570,23 @@ class ReaderActivity : AppCompatActivity() {
             container.addView(group)
         }
         val scroll = ScrollView(this).apply { addView(container) }
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(R.string.reader_quiz_title)
-            .setView(scroll)
-            .setPositiveButton(R.string.reader_check, null)
-            .setNeutralButton(R.string.reader_stay) { _, _ -> backToReading() }
-            .setNegativeButton(R.string.reader_exit) { _, _ -> exitWithoutMinutes() }
-            .create()
-        dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val answers = questions.indices.map { index ->
-                    val group = container.findViewWithTag<RadioGroup>("reader_rg_$index")
-                    val checkedId = group?.checkedRadioButtonId ?: -1
-                    val checked = if (checkedId != -1) group?.findViewById<RadioButton>(checkedId) else null
-                    (checked?.tag as? Int) ?: -1
-                }
-                dialog.dismiss()
-                lifecycleScope.launch { award(viewModel.gradeAndGrant(answers), questions.size) }
-            }
+        val dialog = screenDialog {
+            setTitle(R.string.reader_quiz_title)
+            setView(scroll)
+            setPositiveButton(R.string.reader_check, null)
+            setNeutralButton(R.string.reader_stay) { _, _ -> backToReading() }
+            setNegativeButton(R.string.reader_exit) { _, _ -> exitWithoutMinutes() }
         }
-        dialog.show()
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val answers = questions.indices.map { index ->
+                val group = container.findViewWithTag<RadioGroup>("reader_rg_$index")
+                val checkedId = group?.checkedRadioButtonId ?: -1
+                val checked = if (checkedId != -1) group?.findViewById<RadioButton>(checkedId) else null
+                (checked?.tag as? Int) ?: -1
+            }
+            dialog.dismiss()
+            lifecycleScope.launch { award(viewModel.gradeAndGrant(answers), questions.size) }
+        }
     }
 
     private fun award(outcome: QuizOutcome, questionCount: Int) {
@@ -1578,14 +1606,14 @@ class ReaderActivity : AppCompatActivity() {
             return
         }
         val canRetry = attempts < MAX_ATTEMPTS
-        AlertDialog.Builder(this)
-            .setTitle(R.string.reader_quiz_title)
-            .setMessage(getString(R.string.reader_quiz_fail, outcome.correct, questionCount))
-            .setPositiveButton(if (canRetry) R.string.reader_retry else R.string.reader_stay) { _, _ ->
+        screenDialog {
+            setTitle(R.string.reader_quiz_title)
+            setMessage(getString(R.string.reader_quiz_fail, outcome.correct, questionCount))
+            setPositiveButton(if (canRetry) R.string.reader_retry else R.string.reader_stay) { _, _ ->
                 if (canRetry) startQuiz() else backToReading()
             }
-            .setNegativeButton(R.string.reader_exit) { _, _ -> exitWithoutMinutes() }
-            .show()
+            setNegativeButton(R.string.reader_exit) { _, _ -> exitWithoutMinutes() }
+        }
     }
 
     /** The user goes back to the book: the session continues counting honestly. */
