@@ -21,6 +21,12 @@ class AIRepository {
         const val STRICTNESS_LENIENT = 0
         const val STRICTNESS_NORMAL = 1
         const val STRICTNESS_STRICT = 2
+
+        /** The quiz UI offers four answers; a question with fewer is unusable. */
+        private const val QUIZ_OPTIONS = 4
+
+        /** Longest passage sent for quizzing: ~14 screens of text. */
+        private const val MAX_PASSAGE_CHARS = 12_000
     }
 
     /**
@@ -132,6 +138,62 @@ class AIRepository {
         return parseQuizJson(cleanJson(raw))
     }
 
+    /**
+     * Generates comprehension questions from the passage the reader actually saw.
+     *
+     * Deliberately different from [generateQuiz]: there is no book and no page
+     * range in the prompt, only the text, so the model cannot ask about pages
+     * that were never opened and cannot invent what the book says. [count] comes
+     * from how much was read.
+     */
+    suspend fun generateQuizFromText(
+        text: String,
+        count: Int,
+        apiKey: String = BuildConfig.DEEPSEEK_API_KEY
+    ): List<com.antisdvg.data.model.QuizQuestion> {
+        val prompt = buildQuizFromTextPrompt(text, count)
+
+        val response = try {
+            DeepSeekClient.api.chat(
+                authorization = "Bearer ${apiKey.ifBlank { BuildConfig.DEEPSEEK_API_KEY }}",
+                request = ChatRequest(
+                    messages = listOf(
+                        ChatMessage("system", prompt),
+                        ChatMessage("user", "Составь $count ${questionsWord(count)} по этому отрывку.")
+                    )
+                )
+            )
+        } catch (e: Exception) {
+            return emptyList()
+        }
+
+        if (!response.isSuccessful) return emptyList()
+        val raw = response.body()?.choices?.firstOrNull()?.message?.content ?: return emptyList()
+        return parseQuizJson(cleanJson(raw)).take(count)
+    }
+
+    /** The whole prompt for a passage quiz, kept separate so it can be asserted on. */
+    internal fun buildQuizFromTextPrompt(text: String, count: Int): String = buildString {
+        appendLine("Ты — преподаватель. Ниже отрывок, который человек только что прочитал.")
+        appendLine("Составь ровно $count ${questionsWord(count)} с 4 вариантами ответа на понимание отрывка.")
+        appendLine("Требования:")
+        appendLine("- правильный ответ должен однозначно следовать из отрывка;")
+        appendLine("- неверные варианты правдоподобны, но тексту противоречат;")
+        appendLine("- спрашивай про суть: события, поступки, мысли, связи между ними, а не про мелкие детали;")
+        appendLine("- не спрашивай про то, чего в отрывке нет.")
+        appendLine("Пиши по-русски, коротко. Ответь ТОЛЬКО валидным JSON-массивом (без markdown):")
+        appendLine("""[{"question":"Текст вопроса?","options":["1","2","3","4"],"correctIndex":0}]""")
+        appendLine()
+        appendLine("ОТРЫВОК:")
+        append(text.take(MAX_PASSAGE_CHARS))
+    }
+
+    private fun questionsWord(count: Int): String = when {
+        count % 10 == 1 && count % 100 != 11 -> "вопрос"
+        count % 10 in 2..4 && count % 100 !in 12..14 -> "вопроса"
+        else -> "вопросов"
+    }
+
     internal fun parseQuizJson(json: String): List<com.antisdvg.data.model.QuizQuestion> {
         val list = mutableListOf<com.antisdvg.data.model.QuizQuestion>()
         try {
@@ -147,7 +209,12 @@ class AIRepository {
                     }
                 }
                 val correctIndex = obj.optInt("correctIndex", 0)
-                if (qText.isNotBlank() && options.isNotEmpty()) {
+                // A question with fewer than four options, or an answer index
+                // outside them, cannot be graded — drop it here rather than
+                // showing the reader a question that has no right answer.
+                if (qText.isNotBlank() && options.size == QUIZ_OPTIONS &&
+                    correctIndex in options.indices
+                ) {
                     list.add(com.antisdvg.data.model.QuizQuestion(qText, options, correctIndex))
                 }
             }
@@ -220,12 +287,18 @@ class AIRepository {
         if (codeBlockMatch != null) {
             return codeBlockMatch.groupValues[1].trim()
         }
-        val firstBrace = trimmed.indexOf('{')
-        val lastBrace = trimmed.lastIndexOf('}')
-        if (firstBrace in 0 until lastBrace) {
-            return trimmed.substring(firstBrace, lastBrace + 1).trim()
+        // A verdict comes back as an object, a quiz as an array: keep whichever
+        // the model actually opened with. Taking the first `{` unconditionally
+        // used to strip the brackets off a bare array and lose the whole quiz.
+        val arrayStart = trimmed.indexOf('[')
+        val objectStart = trimmed.indexOf('{')
+        return if (arrayStart >= 0 && (objectStart < 0 || arrayStart < objectStart)) {
+            val end = trimmed.lastIndexOf(']')
+            if (end > arrayStart) trimmed.substring(arrayStart, end + 1).trim() else trimmed
+        } else {
+            val end = trimmed.lastIndexOf('}')
+            if (objectStart in 0 until end) trimmed.substring(objectStart, end + 1).trim() else trimmed
         }
-        return trimmed
     }
 
     /**

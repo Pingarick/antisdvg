@@ -78,4 +78,52 @@ class AIRepositoryTest {
         assertTrue(msg.contains("пересказ"))
         assertFalse(msg.contains("Цитата"))
     }
+
+    @Test
+    fun `cleanJson keeps a bare array intact`() {
+        // Regression: taking the first `{` unconditionally used to strip the
+        // brackets off a quiz that came back without a code fence.
+        val raw = """Вот вопросы: [{"question":"Кто?","options":["а","б","в","г"],"correctIndex":1}] Готово."""
+        assertEquals(
+            """[{"question":"Кто?","options":["а","б","в","г"],"correctIndex":1}]""",
+            repo.cleanJson(raw)
+        )
+    }
+
+    @Test
+    fun `cleanJson still takes the object when a verdict comes first`() {
+        assertEquals("""{"passed": true}""", repo.cleanJson("""Смотри: {"passed": true} и всё."""))
+    }
+
+    @Test
+    fun `parseQuizJson keeps only questions that can be graded`() {
+        val json = """[
+            {"question":"Хороший?","options":["а","б","в","г"],"correctIndex":2},
+            {"question":"Три варианта?","options":["а","б","в"],"correctIndex":1},
+            {"question":"Индекс вне?","options":["а","б","в","г"],"correctIndex":7},
+            {"question":"","options":["а","б","в","г"],"correctIndex":0}
+        ]"""
+
+        val quiz = repo.parseQuizJson(json)
+
+        assertEquals(1, quiz.size)
+        assertEquals("Хороший?", quiz[0].question)
+        assertEquals(2, quiz[0].correctIndex)
+    }
+
+    @Test
+    fun `passage quiz prompt carries the passage and the count`() {
+        val prompt = repo.buildQuizFromTextPrompt("Мартин читал книги каждый вечер в библиотеке.", 3)
+
+        assertTrue(prompt.contains("Мартин читал книги"))
+        assertTrue(prompt.contains("ровно 3 вопрос"))
+        assertTrue(prompt.contains("ОТРЫВОК:"))
+    }
+
+    @Test
+    fun `passage quiz prompt counts questions in Russian`() {
+        assertTrue(repo.buildQuizFromTextPrompt("текст", 1).contains("ровно 1 вопрос "))
+        assertTrue(repo.buildQuizFromTextPrompt("текст", 2).contains("ровно 2 вопроса"))
+        assertTrue(repo.buildQuizFromTextPrompt("текст", 5).contains("ровно 5 вопросов"))
+    }
 }

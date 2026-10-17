@@ -329,6 +329,10 @@
     <string name="reader_back">Вернуться назад</string>
     <string name="reader_volume_on">Кнопки громкости листают: да</string>
     <string name="reader_volume_off">Кнопки громкости листают: нет</string>
+    <string name="reader_ai_on">Тест от ИИ: да</string>
+    <string name="reader_ai_off">Тест от ИИ: нет (офлайн)</string>
+    <string name="reader_ai_thinking">ИИ составляет вопросы по прочитанным страницам…</string>
+    <string name="reader_ai_unavailable">ИИ недоступен — вопросы будут офлайн</string>
     <string name="reader_jump_to">→ стр. %1$d</string>
     <string name="reader_bookmark_labeled">%1$s · стр. %2$d</string>
     <string name="reader_jump_go">Перейти</string>

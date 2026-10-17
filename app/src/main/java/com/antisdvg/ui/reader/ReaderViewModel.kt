@@ -322,18 +322,37 @@ class ReaderViewModel(
      * window around the position, no text from pages never opened. The number
      * of questions follows the amount read (see [ReaderProgress.questionsForPages]).
      */
-    fun buildQuiz(): List<QuizQuestion> {
-        val kept = pending
-        val seen = excerpt
-        // A postponed session is tested on the pages it kept; a live one on the
-        // pages the layout reported; ribbon mode on the progress range.
-        val text = kept?.excerpt?.takeIf { it.isNotBlank() }
-            ?: seen?.text?.takeIf { it.isNotBlank() }
+    /**
+     * The text this session is judged on: a postponed session's pages, the pages
+     * the layout reported for a live one, or the progress range in ribbon mode.
+     */
+    fun passageText(): String =
+        pending?.excerpt?.takeIf { it.isNotBlank() }
+            ?: excerpt?.text?.takeIf { it.isNotBlank() }
             ?: fallbackExcerpt()
-        val pages = kept?.pages ?: seen?.pages ?: summary().pagesRead
+
+    /** How many pages the session is worth testing. */
+    fun readPages(): Int = pending?.pages ?: excerpt?.pages ?: summary().pagesRead
+
+    /** How many questions that many pages deserve. */
+    fun plannedQuestions(): Int = ReaderProgress.questionsForPages(readPages())
+
+    /**
+     * Uses questions made elsewhere — the AI, from these pages. Grading reads the
+     * same list, so the announced test and the graded test stay the same one.
+     */
+    fun useQuestions(prepared: List<QuizQuestion>) {
+        questions = prepared
+    }
+
+    /** The DeepSeek key: whatever settings hold, or the built-in one if untouched. */
+    suspend fun apiKey(): String = repo.getSettings().apiKey
+
+    /** The offline test, built from the very same passage. */
+    fun buildQuiz(): List<QuizQuestion> {
         questions = ClozeQuiz.generate(
-            text,
-            count = ReaderProgress.questionsForPages(pages),
+            passageText(),
+            count = plannedQuestions(),
             rnd = Random(System.currentTimeMillis())
         )
         return questions

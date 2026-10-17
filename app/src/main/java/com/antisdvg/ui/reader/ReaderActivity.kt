@@ -39,10 +39,12 @@ import com.antisdvg.AntiSdvgApp
 import com.antisdvg.R
 import com.antisdvg.data.model.Bookmark
 import com.antisdvg.data.model.QuizQuestion
+import com.antisdvg.data.repository.AIRepository
 import com.antisdvg.databinding.ActivityReaderBinding
 import com.antisdvg.ui.AppViewModelFactory
 import com.antisdvg.util.ReaderProgress
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -63,6 +65,7 @@ class ReaderActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityReaderBinding
     private val repo by lazy { AppViewModelFactory.repository(application as AntiSdvgApp) }
+    private val ai by lazy { AIRepository() }
     private val viewModel: ReaderViewModel by viewModels {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -91,6 +94,13 @@ class ReaderActivity : AppCompatActivity() {
      * retry generates fresh questions.
      */
     private var preparedQuestions: List<QuizQuestion>? = null
+
+    /**
+     * Whether this reader session is using the AI for its tests. Null until it is
+     * tried; once the model fails (offline, key rejected) the session stays on the
+     * offline test instead of making the reader wait again for nothing.
+     */
+    private var aiUsed: Boolean? = null
 
     /** Postponed sessions: what an exit without taking the test leaves behind. */
     private val pendingStore by lazy { PendingSessionStore(this) }
@@ -1013,6 +1023,11 @@ class ReaderActivity : AppCompatActivity() {
         row(R.string.reader_jump) { showJumpDialog() }
         row(R.string.reader_bookmark_add) { addBookmark() }
         row(R.string.reader_bookmarks) { showBookmarks() }
+        row(if (aiQuizEnabled()) R.string.reader_ai_on else R.string.reader_ai_off) {
+            val next = !aiQuizEnabled()
+            uiPrefs.edit().putBoolean(KEY_AI_QUIZ, next).apply()
+            toast(getString(if (next) R.string.reader_ai_on else R.string.reader_ai_off))
+        }
         row(
             if (volumeTurnsPages()) R.string.reader_volume_on else R.string.reader_volume_off
         ) {
@@ -1391,10 +1406,57 @@ class ReaderActivity : AppCompatActivity() {
                 viewModel.noteExcerpt(excerpt)
             }
             viewModel.freezeSession()
-            preparedQuestions = viewModel.buildQuiz()
-            showSummary(preparedQuestions?.size ?: 0)
+            prepareQuiz(withProgress = true) { count -> showSummary(count) }
         }
     }
+
+    /**
+     * Prepares the session's test: the AI's questions about the pages that were
+     * read when that is possible, the offline cloze otherwise.
+     *
+     * Always ends with a list, so the summary can name a number and the test can
+     * honour it — the reader never waits for an answer that may not come.
+     */
+    private fun prepareQuiz(withProgress: Boolean, onReady: (Int) -> Unit) {
+        if (!aiQuizEnabled() || aiUsed == false || viewModel.passageText().isBlank()) {
+            aiUsed = false
+            preparedQuestions = viewModel.buildQuiz()
+            onReady(preparedQuestions?.size ?: 0)
+            return
+        }
+        val progress = if (withProgress) {
+            screenDialog {
+                setMessage(R.string.reader_ai_thinking)
+                setCancelable(false)
+            }
+        } else {
+            null
+        }
+        lifecycleScope.launch {
+            val generated = runCatching {
+                withTimeout(AI_TIMEOUT_MS) {
+                    ai.generateQuizFromText(
+                        viewModel.passageText(),
+                        viewModel.plannedQuestions(),
+                        viewModel.apiKey()
+                    )
+                }
+            }.getOrNull().orEmpty()
+            progress?.dismiss()
+            if (generated.isEmpty()) {
+                aiUsed = false
+                if (withProgress) toast(getString(R.string.reader_ai_unavailable))
+                preparedQuestions = viewModel.buildQuiz()
+            } else {
+                aiUsed = true
+                viewModel.useQuestions(generated)
+                preparedQuestions = generated
+            }
+            onReady(preparedQuestions?.size ?: 0)
+        }
+    }
+
+    private fun aiQuizEnabled(): Boolean = uiPrefs.getBoolean(KEY_AI_QUIZ, true)
 
     /**
      * What the session produced, and a chance to confirm it before the test: the
@@ -1520,10 +1582,16 @@ class ReaderActivity : AppCompatActivity() {
     }
 
     private fun startQuiz() {
+        if (preparedQuestions == null) {
+            // A retry: fetch the same kind of test again, so a second attempt is
+            // not quietly easier than the first.
+            prepareQuiz(withProgress = true) { startQuiz() }
+            return
+        }
         attempts++
         // The first attempt is exactly the test the summary announced; a retry
         // gets fresh questions from the same pages.
-        val questions = preparedQuestions ?: viewModel.buildQuiz()
+        val questions = preparedQuestions ?: emptyList()
         preparedQuestions = null
         if (questions.isEmpty()) {
             // Text too small to build an honest test: gate on real reading time only.
@@ -1638,6 +1706,12 @@ class ReaderActivity : AppCompatActivity() {
 
         /** Volume keys turn pages by default; the menu can give them back. */
         private const val KEY_VOLUME_TURN = "volume_turn"
+
+        /** The AI writes the test by default; the menu can turn it off (offline). */
+        private const val KEY_AI_QUIZ = "ai_quiz"
+
+        /** Longest a reader waits for the AI before the offline test steps in. */
+        private const val AI_TIMEOUT_MS = 15_000L
 
         /** Reading a full screen without touching it must not pause the timer. */
         private const val IDLE_TIMEOUT_MS = 180_000L
