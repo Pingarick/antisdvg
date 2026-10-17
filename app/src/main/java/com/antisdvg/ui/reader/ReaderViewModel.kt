@@ -64,6 +64,20 @@ data class SessionSummary(
     val toPage: Int
 )
 
+/**
+ * The pages the paged layout really put on screen during a session, plus their
+ * text. [pages] is the number of *distinct* screens (flipping back and forth
+ * never counts a page twice), [fromPage]/[toPage] are the outermost ones, and
+ * [text] is the joined text of those screens — the only text a session's test
+ * is allowed to ask about.
+ */
+data class ReadExcerpt(
+    val text: String,
+    val fromPage: Int,
+    val toPage: Int,
+    val pages: Int
+)
+
 /** Outcome of the gate: how many answers were right and what it paid. */
 data class QuizOutcome(
     val correct: Int,
@@ -87,6 +101,13 @@ class ReaderViewModel(
     private var plainText: String = ""
     private var sessionStartProgress = 0.0
     private var questions: List<QuizQuestion> = emptyList()
+
+    /**
+     * Pages the paged layout reported as seen this session. Set before the
+     * session is frozen, so the summary and the test both describe the same
+     * screens. Empty in ribbon mode, where only progress is known.
+     */
+    private var excerpt: ReadExcerpt? = null
 
     /** Last progress written to the database, so autosave never writes twice. */
     private var lastPersisted = -1.0
@@ -185,6 +206,15 @@ class ReaderViewModel(
         }
     }
 
+    /**
+     * The layout's report of which screens were on screen, taken when the user
+     * ends the session. Only used to describe and to test the session, never to
+     * decide the minutes: time is what pays.
+     */
+    fun noteExcerpt(excerpt: ReadExcerpt) {
+        this.excerpt = excerpt
+    }
+
     fun setTheme(theme: ReaderTheme) = _state.update { it.copy(theme = theme) }
 
     fun cycleTheme() = setTheme(
@@ -253,9 +283,12 @@ class ReaderViewModel(
     private fun computeSummary(): SessionSummary {
         val state = _state.value
         val total = totalPages()
-        val from = ReaderProgress.pageAt(sessionStartProgress, total)
-        val to = ReaderProgress.pageAt(state.progress, total)
-        val pages = ReaderProgress.pagesAdvanced(sessionStartProgress, state.progress, total)
+        // With a page report the summary describes the screens the reader saw;
+        // without one (ribbon mode) it falls back to progress on the text.
+        val seen = excerpt
+        val from = seen?.fromPage ?: ReaderProgress.pageAt(sessionStartProgress, total)
+        val to = seen?.toPage ?: ReaderProgress.pageAt(state.progress, total)
+        val pages = seen?.pages ?: ReaderProgress.pagesAdvanced(sessionStartProgress, state.progress, total)
         return SessionSummary(state.activeSeconds / 60, pages, from, to)
     }
 
@@ -264,27 +297,51 @@ class ReaderViewModel(
         ReaderProgress.earnedMinutes(summary.minutesRead, format)
 
     /**
-     * Builds a light cloze test from the text that was actually scrolled during
-     * this session (widened a little when the session was short).
+     * Builds the session's light test.
+     *
+     * The text comes from the screens the paged layout says it showed, so the
+     * questions can only ask about what was in front of the reader — no wide
+     * window around the position, no text from pages never opened. The number
+     * of questions follows the amount read (see [ReaderProgress.questionsForPages]).
      */
     fun buildQuiz(): List<QuizQuestion> {
+        val seen = excerpt
+        // With a page report the test comes from those pages and nothing else.
+        // Ribbon mode has no pages, so there the progress range stands in.
+        val text = seen?.text?.takeIf { it.isNotBlank() } ?: fallbackExcerpt()
+        val pages = seen?.pages ?: summary().pagesRead
+        questions = ClozeQuiz.generate(
+            text,
+            count = ReaderProgress.questionsForPages(pages),
+            rnd = Random(System.currentTimeMillis())
+        )
+        return questions
+    }
+
+    /** How many questions the current test has (0 when none could be built). */
+    fun questionCount(): Int = questions.size
+
+    /**
+     * Ribbon mode has no pages to report, so there the test still comes from the
+     * character range the progress covers, widened when the session was short.
+     */
+    private fun fallbackExcerpt(): String {
         val state = _state.value
         val total = plainText.length
         val start = (sessionStartProgress * total).toInt().coerceIn(0, total)
         val end = (state.progress * total).toInt().coerceIn(0, total)
         var excerpt = if (end > start) plainText.substring(start, end) else ""
-        if (excerpt.length < 1500 && total > 1500) {
+        if (excerpt.length < WIDE_EXCERPT_CHARS && total > WIDE_EXCERPT_CHARS) {
             val wideEnd = (end + 4000).coerceAtMost(total)
             val wideStart = (wideEnd - 6500).coerceAtLeast(0)
             excerpt = plainText.substring(wideStart, wideEnd)
         }
-        questions = ClozeQuiz.generate(excerpt, count = 3, rnd = Random(System.currentTimeMillis()))
-        return questions
+        return excerpt
     }
 
     /**
      * Grades the answers and, when the light test is passed, awards minutes for
-     * the honest reading time. Two of three right already passes.
+     * the honest reading time.
      */
     suspend fun gradeAndGrant(answers: List<Int>): QuizOutcome {
         val state = _state.value
@@ -292,11 +349,7 @@ class ReaderViewModel(
         val correct = questions.indices.count { i ->
             answers.getOrNull(i) == questions[i].correctIndex
         }
-        val required = when {
-            questions.isEmpty() -> 0
-            questions.size <= 2 -> 1
-            else -> (questions.size * 2 + 2) / 3
-        }
+        val required = ReaderProgress.passThreshold(questions.size)
         val passed = questions.isNotEmpty() && correct >= required
         if (!passed) return QuizOutcome(correct, questions.size, false, 0)
 
@@ -322,11 +375,12 @@ class ReaderViewModel(
         // in the same write, or "the end of the book" would be judged by the
         // rough estimate and the book would never be marked as finished.
         val total = totalPages()
-        val endPage = maxOf(ReaderProgress.pageAt(state.progress, total), book.currentPage)
+        val endPage = maxOf(summary.toPage, book.currentPage)
         repo.recordSession(
             book = book.copy(progress = state.progress, totalPages = total),
             startPage = summary.fromPage,
             endPage = endPage,
+            pagesRead = summary.pagesRead,
             taskType = VerifyResult.TASK_QUIZ,
             earnedMinutes = earned
         )
@@ -339,5 +393,8 @@ class ReaderViewModel(
     companion object {
         const val FILE_MISSING = "Файл книги не найден."
         const val FILE_BROKEN = "Не удалось открыть файл книги."
+
+        /** Ribbon mode widens a short read to this much text before quizzing. */
+        private const val WIDE_EXCERPT_CHARS = 1500
     }
 }

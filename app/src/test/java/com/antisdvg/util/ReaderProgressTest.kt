@@ -52,4 +52,32 @@ class ReaderProgressTest {
         assertEquals(6, ReaderProgress.earnedMinutes(10, BookFormat.ELECTRONIC))
         assertEquals(1, ReaderProgress.earnedMinutes(1, BookFormat.ELECTRONIC))
     }
+
+    @Test
+    fun questionsForPages_growsWithTheReading() {
+        assertEquals(1, ReaderProgress.questionsForPages(0))
+        assertEquals(1, ReaderProgress.questionsForPages(1))
+        assertEquals(2, ReaderProgress.questionsForPages(2))
+        assertEquals(2, ReaderProgress.questionsForPages(3))
+        assertEquals(3, ReaderProgress.questionsForPages(4))
+        assertEquals(3, ReaderProgress.questionsForPages(6))
+        assertEquals(4, ReaderProgress.questionsForPages(7))
+        assertEquals(4, ReaderProgress.questionsForPages(10))
+    }
+
+    @Test
+    fun questionsForPages_isCappedForVeryLongReads() {
+        assertEquals(ReaderProgress.MAX_QUESTIONS, ReaderProgress.questionsForPages(11))
+        assertEquals(ReaderProgress.MAX_QUESTIONS, ReaderProgress.questionsForPages(400))
+    }
+
+    @Test
+    fun passThreshold_isTwoThirdsButForgivingOnTinyTests() {
+        assertEquals(0, ReaderProgress.passThreshold(0))
+        assertEquals(1, ReaderProgress.passThreshold(1))
+        assertEquals(1, ReaderProgress.passThreshold(2))
+        assertEquals(2, ReaderProgress.passThreshold(3))
+        assertEquals(3, ReaderProgress.passThreshold(4))
+        assertEquals(4, ReaderProgress.passThreshold(5))
+    }
 }

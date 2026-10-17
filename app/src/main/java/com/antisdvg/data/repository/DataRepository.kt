@@ -134,9 +134,10 @@ class DataRepository(
         startPage: Int,
         endPage: Int,
         taskType: String,
-        earnedMinutes: Int
+        earnedMinutes: Int,
+        pagesRead: Int = endPage - startPage + 1
     ) {
-        val pagesThisSession = (endPage - startPage + 1).coerceAtLeast(1)
+        val pagesThisSession = pagesRead.coerceAtLeast(1)
 
         // 1. Advance the book.
         val nextPage = endPage.coerceAtMost(book.totalPages)

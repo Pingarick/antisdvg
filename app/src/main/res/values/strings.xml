@@ -131,6 +131,7 @@
     <string name="api_key">DeepSeek API ключ</string>
     <string name="api_key_hint">Вставь ключ (sk-…)</string>
     <string name="save_key">Сохранить ключ</string>
+    <string name="api_key_builtin">Ключ уже встроен в приложение и работает. Это поле — только если захочешь заменить его своим.</string>
     <string name="unsaved_changes">Внеси ключ в local.properties или здесь</string>
     <string name="minutes_per_page">Минут доступа за 1 страницу</string>
 
@@ -152,7 +153,7 @@
     <string name="reading_end_page">До какой страницы дошёл?</string>
     <string name="reading_verify">Подтвердить чтение</string>
     <string name="reader_error_network">Нет соединения. Проверка требует интернет.</string>
-    <string name="reader_error_key">Не задан API-ключ DeepSeek. Добавь его в настройках или в local.properties.</string>
+    <string name="reader_error_key">API-ключ DeepSeek не принят. Ключ встроен в приложение — если ошибка повторяется, впиши свой в настройках.</string>
     <string name="reader_error_generic">Не удалось проверить пересказ. Попробуй ещё раз.</string>
 
     <!-- Stats screen -->
@@ -292,9 +293,14 @@
     <string name="reader_too_short_title">Пока мало</string>
     <string name="reader_too_short">Меньше минуты чтения — начислять нечего. Почитай подольше.</string>
     <string name="reader_summary_title">Итог чтения</string>
-    <string name="reader_summary">Прочитано стр. %1$d за %2$d мин.\nВсего в книге ~%3$d стр.\n\nПройти лёгкий тест по прочитанному и получить минуты?</string>
+    <string name="reader_summary_page">Прочитано стр. %1$d за %2$d мин.</string>
+    <string name="reader_summary_pages">Прочитано стр. %1$d–%2$d (%3$d стр.) за %4$d мин.</string>
+    <string name="reader_summary_ask">Всего в книге %1$d стр.\n\nЛёгкий тест по этим страницам, вопросов: %2$d. Начислить минуты?</string>
+    <string name="reader_summary_no_test">Всего в книге %1$d стр.\n\nТекста мало, чтобы честно проверить чтение — начислим минуты за время у книги.</string>
     <string name="reader_take_test">Пройти тест</string>
+    <string name="reader_take_minutes">Получить минуты</string>
     <string name="reader_quiz_title">Проверка чтения</string>
+    <string name="reader_quiz_header">Вопросов: %1$d</string>
     <string name="reader_check">Проверить</string>
     <string name="reader_retry">Ещё попытка</string>
     <string name="reader_quiz_pass">Верно %1$d из %2$d. +%3$d мин в кошелёк!</string>

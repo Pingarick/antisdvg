@@ -27,7 +27,29 @@ object ReaderProgress {
     }
 
     /**
-     * What a session pays: real reading minutes, scaled by the electronic-book
+     * How many questions a session deserves. One screen of text is one question;
+     * someone who read twenty screens should not pass on a single one. Grows with
+     * the reading, capped at [MAX_QUESTIONS].
+     */
+    fun questionsForPages(pages: Int): Int = when {
+        pages <= 1 -> 1
+        pages <= 3 -> 2
+        pages <= 6 -> 3
+        pages <= 10 -> 4
+        else -> MAX_QUESTIONS
+    }
+
+    /**
+     * Right answers a test of [total] questions needs: two thirds, but a test of
+     * one or two questions lets a single slip through.
+     */
+    fun passThreshold(total: Int): Int = when {
+        total <= 0 -> 0
+        total <= 2 -> 1
+        else -> (total * 2 + 2) / 3
+    }
+
+    /** What a session pays: real reading minutes, scaled by the electronic-book
      * factor. Zero below a full minute — there is nothing honest to pay yet.
      */
     fun earnedMinutes(minutesRead: Int, format: String): Int {
@@ -37,6 +59,9 @@ object ReaderProgress {
 
     /** Seconds of a session that count as "a minute at least". */
     const val MIN_SESSION_SECONDS = 60
+
+    /** Longest test anyone gets, however much was read. */
+    const val MAX_QUESTIONS = 5
 
     private const val EPSILON = 0.0005
 }

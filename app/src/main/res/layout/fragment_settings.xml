@@ -227,6 +227,8 @@
                     android:layout_height="wrap_content"
                     app:endIconMode="password_toggle"
                     android:hint="@string/api_key"
+                    app:helperText="@string/api_key_builtin"
+                    app:helperTextEnabled="true"
                     app:boxBackgroundColor="@color/cream_light"
                     app:boxStrokeColor="@color/accent_primary"
                     app:boxStrokeWidth="1dp">

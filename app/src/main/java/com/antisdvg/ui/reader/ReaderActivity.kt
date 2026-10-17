@@ -36,6 +36,8 @@ import com.antisdvg.R
 import com.antisdvg.databinding.ActivityReaderBinding
 import com.antisdvg.ui.AppViewModelFactory
 import kotlinx.coroutines.launch
+import org.json.JSONObject
+import org.json.JSONTokener
 
 /**
  * The built-in reader.
@@ -492,7 +494,52 @@ class ReaderActivity : AppCompatActivity() {
                 c.style.transform = 'translateX(' + (-cur * pageW) + 'px)';
               }
 
+              // The honest record of the session: which screens were really put
+              // in front of the reader. A set, not a counter — flipping back and
+              // forth must never count one screen twice.
+              var visited = {}, pMin = INITIAL, pMax = INITIAL;
+
+              function markVisited() {
+                if (!paged) { return; }
+                visited[cur] = true;
+                var r = ratio();
+                if (r < pMin) { pMin = r; }
+                if (r > pMax) { pMax = r; }
+              }
+
+              // Changing font, size or mode re-lays the text out, so the old page
+              // numbers mean nothing. What survives is the span of progress seen
+              // so far; every page inside it counts as read on the new layout.
+              function resyncVisited() {
+                visited = {};
+                var a = pageFor(pMin), b = pageFor(pMax);
+                for (var i = a; i <= b; i++) { visited[i] = true; }
+                markVisited();
+              }
+
+              // Text of the visited screens, in reading order. A block starting
+              // inside page N belongs to it, so a paragraph spanning a page break
+              // is read once. Blocks are joined with a blank line, which keeps a
+              // sentence from ever being stitched together across two pages.
+              function excerptText() {
+                var base = c.getBoundingClientRect().left;
+                var out = [];
+                var kids = c.children;
+                for (var i = 0; i < kids.length; i++) {
+                  var k = kids[i];
+                  var r = k.getBoundingClientRect();
+                  if (r.width <= 0 && r.height <= 0) { continue; }
+                  var col = clamp(Math.floor((r.left - base) / pageW + 0.001), 0, total - 1);
+                  if (visited[col]) {
+                    var t = (k.textContent || '').replace(/\s+/g, ' ').trim();
+                    if (t) { out.push(t); }
+                  }
+                }
+                return out.join('\n\n');
+              }
+
               function report() {
+                markVisited();
                 ReaderBridge.onProgress(ratio());
                 ReaderBridge.onPage(cur + 1, total);
               }
@@ -512,6 +559,7 @@ class ReaderActivity : AppCompatActivity() {
                 relax();
                 cur = pageFor(r);
                 place(false);
+                resyncVisited();
                 report();
               }
 
@@ -582,6 +630,7 @@ class ReaderActivity : AppCompatActivity() {
                     relax();
                     cur = pageFor(was);
                     place(false);
+                    resyncVisited();
                     report();
                   } else {
                     c.style.transition = 'none';
@@ -600,6 +649,23 @@ class ReaderActivity : AppCompatActivity() {
                   }
                 },
                 restore: function () { if (paged) { reflow(true); } },
+                // What the session should be judged on: the screens really shown
+                // and their text. Null in ribbon mode, where the reader has no
+                // pages of its own and Kotlin falls back to the progress range.
+                excerpt: function () {
+                  if (!paged) { return null; }
+                  var lo = total, hi = 0, n = 0;
+                  for (var k in visited) {
+                    if (visited[k]) {
+                      var i = parseInt(k, 10);
+                      n++;
+                      if (i < lo) { lo = i; }
+                      if (i > hi) { hi = i; }
+                    }
+                  }
+                  if (n === 0) { return null; }
+                  return { text: excerptText(), fromPage: lo + 1, toPage: hi + 1, pages: n };
+                },
                 state: function () {
                   return { paged: paged, total: total, cur: cur, pageW: pageW, ratio: ratio() };
                 }
@@ -669,16 +735,81 @@ class ReaderActivity : AppCompatActivity() {
                 .show()
             return
         }
-        viewModel.freezeSession()
+        // The layout is the only thing that knows which screens were actually
+        // shown, so its report is taken before the session is frozen. Otherwise
+        // the summary and the test would describe a guess.
+        pullExcerpt { excerpt ->
+            excerpt?.let { viewModel.noteExcerpt(it) }
+            viewModel.freezeSession()
+            showSummary(viewModel.buildQuiz().size)
+        }
+    }
+
+    /**
+     * What the session produced, and a chance to confirm it before the test: the
+     * pages are the ones the layout showed, the questions are sized to how much
+     * was read.
+     */
+    private fun showSummary(questionCount: Int) {
         val summary = viewModel.summary()
+        val read = if (summary.fromPage == summary.toPage) {
+            getString(R.string.reader_summary_page, summary.fromPage, summary.minutesRead)
+        } else {
+            getString(
+                R.string.reader_summary_pages,
+                summary.fromPage,
+                summary.toPage,
+                summary.pagesRead,
+                summary.minutesRead
+            )
+        }
+        val ask = if (questionCount > 0) {
+            getString(R.string.reader_summary_ask, viewModel.totalPages(), questionCount)
+        } else {
+            getString(R.string.reader_summary_no_test, viewModel.totalPages())
+        }
         AlertDialog.Builder(this)
             .setTitle(R.string.reader_summary_title)
-            .setMessage(
-                getString(R.string.reader_summary, summary.pagesRead, summary.minutesRead, viewModel.totalPages())
-            )
-            .setPositiveButton(R.string.reader_take_test) { _, _ -> startQuiz() }
+            .setMessage("$read\n\n$ask")
+            .setPositiveButton(
+                if (questionCount > 0) R.string.reader_take_test else R.string.reader_take_minutes
+            ) { _, _ ->
+                if (questionCount > 0) {
+                    startQuiz()
+                } else {
+                    lifecycleScope.launch { award(viewModel.grantWithoutQuiz(), 0) }
+                }
+            }
             .setNegativeButton(R.string.reader_stay) { _, _ -> viewModel.unfreeze() }
             .show()
+    }
+
+    /**
+     * Asks the page which screens it showed this session, together with their
+     * text. Answers on the main thread with null when the reader has no pages to
+     * report (ribbon mode) or the page is not ready yet.
+     */
+    private fun pullExcerpt(onDone: (ReadExcerpt?) -> Unit) {
+        binding.readerWeb.evaluateJavascript(
+            "(function(){try{var e=Reader.excerpt();return e?JSON.stringify(e):null;}" +
+                "catch(err){return null;}})()"
+        ) { raw -> onDone(parseExcerpt(raw)) }
+    }
+
+    private fun parseExcerpt(raw: String?): ReadExcerpt? {
+        if (raw == null || raw == "null" || raw.length < 4) return null
+        return runCatching {
+            // evaluateJavascript answers with JSON; a string comes quoted.
+            val json = JSONObject(JSONTokener(raw).nextValue() as String)
+            val text = json.optString("text")
+            if (text.isBlank()) return null
+            ReadExcerpt(
+                text = text,
+                fromPage = json.optInt("fromPage", 1),
+                toPage = json.optInt("toPage", 1),
+                pages = json.optInt("pages", 1)
+            )
+        }.getOrNull()
     }
 
     private fun startQuiz() {
@@ -694,6 +825,14 @@ class ReaderActivity : AppCompatActivity() {
             val pad = (resources.displayMetrics.density * 20).toInt()
             setPadding(pad, pad, pad, pad)
         }
+        // The count follows how much was read, so say it: five questions for a
+        // long read is not the same deal as one for a single screen.
+        container.addView(TextView(this).apply {
+            text = getString(R.string.reader_quiz_header, questions.size)
+            textSize = 13f
+            alpha = 0.7f
+            setPadding(0, 0, 0, 12)
+        })
         questions.forEachIndexed { index, question ->
             container.addView(TextView(this).apply {
                 text = question.question
