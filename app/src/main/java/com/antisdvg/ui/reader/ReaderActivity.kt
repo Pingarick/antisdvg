@@ -36,6 +36,7 @@ import com.antisdvg.R
 import com.antisdvg.data.model.QuizQuestion
 import com.antisdvg.databinding.ActivityReaderBinding
 import com.antisdvg.ui.AppViewModelFactory
+import com.antisdvg.util.ReaderProgress
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -85,6 +86,15 @@ class ReaderActivity : AppCompatActivity() {
      */
     private var preparedQuestions: List<QuizQuestion>? = null
 
+    /** Postponed sessions: what an exit without taking the test leaves behind. */
+    private val pendingStore by lazy { PendingSessionStore(this) }
+
+    /** True while the test being graded belongs to a postponed session. */
+    private var claiming = false
+
+    /** True while a dialog owns the screen, so its seconds are not reading time. */
+    private var modalOpen = false
+
     /** Colors of the theme currently drawn, so the timer can dim itself when idle. */
     private var palette = paletteOf(ReaderTheme.PAPER)
 
@@ -93,7 +103,9 @@ class ReaderActivity : AppCompatActivity() {
 
     private val ticker = object : Runnable {
         override fun run() {
-            val active = SystemClock.elapsedRealtime() - lastActivityMs < IDLE_TIMEOUT_MS
+            // A dialog is not reading: while one owns the screen, the clock stops.
+            val active = !modalOpen &&
+                SystemClock.elapsedRealtime() - lastActivityMs < IDLE_TIMEOUT_MS
             if (active) {
                 viewModel.onTick()
                 // Autosave: a killed app must not cost the reader their place.
@@ -222,6 +234,7 @@ class ReaderActivity : AppCompatActivity() {
                     null
                 )
                 showPagingHintOnce(state.mode)
+                maybeOfferPending()
             } else {
                 applyStyleChanges(state)
             }
@@ -812,13 +825,66 @@ class ReaderActivity : AppCompatActivity() {
     }
 
     /**
-     * Leaves the reader without taking the test: the reading and the bookmark
-     * stay, the minutes of this session are not claimed. Said out loud, because
-     * walking out is exactly how someone loses an hour of reading by accident.
+     * A postponed session is offered as soon as the book is open, so the reader
+     * sees what is waiting for them: take the test, leave it for later, or drop
+     * it. Until they answer, the clock is stopped — a dialog is not reading.
+     */
+    private fun maybeOfferPending() {
+        val claim = pendingStore.forBook(intent.getLongExtra(EXTRA_BOOK_ID, -1L)) ?: return
+        val earned = ReaderProgress.earnedMinutes(claim.minutesRead, viewModel.state.value.book?.format ?: "")
+        val message = if (claim.fromPage == claim.toPage) {
+            getString(R.string.reader_pending_one, claim.fromPage, claim.minutesRead, earned)
+        } else {
+            getString(
+                R.string.reader_pending,
+                claim.fromPage,
+                claim.toPage,
+                claim.pages,
+                claim.minutesRead,
+                earned
+            )
+        }
+        modalOpen = true
+        AlertDialog.Builder(this)
+            .setTitle(R.string.reader_pending_title)
+            .setMessage(message)
+            .setPositiveButton(R.string.reader_take_test) { _, _ -> claimPending(claim) }
+            .setNeutralButton(R.string.reader_pending_later) { _, _ -> onPendingAnswered() }
+            .setNegativeButton(R.string.reader_pending_forget) { _, _ ->
+                pendingStore.remove(claim.bookId)
+                onPendingAnswered()
+            }
+            .setOnCancelListener { onPendingAnswered() }
+            .show()
+    }
+
+    /** The postponed test runs on the session it kept, not on the live clock. */
+    private fun claimPending(claim: PendingSession) {
+        claiming = true
+        viewModel.beginPending(claim)
+        onPendingAnswered()
+        startQuiz()
+    }
+
+    private fun onPendingAnswered() {
+        modalOpen = false
+        // The user just touched the dialog; reading resumes from here.
+        lastActivityMs = SystemClock.elapsedRealtime()
+    }
+
+    /**
+     * Leaves the reader without taking the test. The session is kept for later
+     * instead of being burned, so walking out by accident costs nothing.
      */
     private fun exitWithoutMinutes() {
         viewModel.persistProgress()
-        toast(getString(R.string.reader_exit_no_minutes))
+        val kept = viewModel.claimForExit()
+        kept?.let { pendingStore.put(it) }
+        toast(
+            getString(
+                if (kept != null) R.string.reader_exit_postponed else R.string.reader_exit_no_minutes
+            )
+        )
         finish()
     }
 
@@ -925,6 +991,12 @@ class ReaderActivity : AppCompatActivity() {
 
     private fun award(outcome: QuizOutcome, questionCount: Int) {
         if (outcome.passed) {
+            // A claimed postponed session is done with; a live one never had it.
+            if (claiming) {
+                pendingStore.remove(intent.getLongExtra(EXTRA_BOOK_ID, -1L))
+            }
+            claiming = false
+            viewModel.cancelPending()
             Toast.makeText(
                 this,
                 getString(R.string.reader_quiz_pass, outcome.correct, outcome.total, outcome.grantedMinutes),
@@ -948,6 +1020,8 @@ class ReaderActivity : AppCompatActivity() {
     private fun backToReading() {
         attempts = 0
         preparedQuestions = null
+        claiming = false
+        viewModel.cancelPending()
         viewModel.unfreeze()
     }
 

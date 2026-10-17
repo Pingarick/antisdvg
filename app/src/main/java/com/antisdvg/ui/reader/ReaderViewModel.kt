@@ -109,6 +109,12 @@ class ReaderViewModel(
      */
     private var excerpt: ReadExcerpt? = null
 
+    /**
+     * A postponed session being claimed: while it is set, the summary and the
+     * test describe it instead of the reader's current position.
+     */
+    private var pending: PendingSession? = null
+
     /** Last progress written to the database, so autosave never writes twice. */
     private var lastPersisted = -1.0
 
@@ -281,6 +287,11 @@ class ReaderViewModel(
     fun summary(): SessionSummary = frozen ?: computeSummary()
 
     private fun computeSummary(): SessionSummary {
+        // A postponed session is described by what it kept, not by where the
+        // reader happens to be now.
+        pending?.let {
+            return SessionSummary(it.minutesRead, it.pages, it.fromPage, it.toPage)
+        }
         val state = _state.value
         val total = totalPages()
         // With a page report the summary describes the screens the reader saw;
@@ -305,11 +316,14 @@ class ReaderViewModel(
      * of questions follows the amount read (see [ReaderProgress.questionsForPages]).
      */
     fun buildQuiz(): List<QuizQuestion> {
+        val kept = pending
         val seen = excerpt
-        // With a page report the test comes from those pages and nothing else.
-        // Ribbon mode has no pages, so there the progress range stands in.
-        val text = seen?.text?.takeIf { it.isNotBlank() } ?: fallbackExcerpt()
-        val pages = seen?.pages ?: summary().pagesRead
+        // A postponed session is tested on the pages it kept; a live one on the
+        // pages the layout reported; ribbon mode on the progress range.
+        val text = kept?.excerpt?.takeIf { it.isNotBlank() }
+            ?: seen?.text?.takeIf { it.isNotBlank() }
+            ?: fallbackExcerpt()
+        val pages = kept?.pages ?: seen?.pages ?: summary().pagesRead
         questions = ClozeQuiz.generate(
             text,
             count = ReaderProgress.questionsForPages(pages),
@@ -335,6 +349,40 @@ class ReaderViewModel(
      */
     fun clearExcerpt() {
         excerpt = null
+    }
+
+    /** Switches grading to a postponed session; its test is built from its pages. */
+    fun beginPending(claim: PendingSession) {
+        pending = claim
+        questions = emptyList()
+    }
+
+    /** Back to the live session — the postponed one stays on disk either way. */
+    fun cancelPending() {
+        pending = null
+    }
+
+    /**
+     * What to keep when the user leaves without the test: the honest minutes and
+     * the pages that were on screen, so nothing is lost by walking out. Null when
+     * there is nothing worth keeping (too short a read, no text at all).
+     */
+    fun claimForExit(): PendingSession? {
+        val state = _state.value
+        val book = state.book ?: return null
+        if (state.activeSeconds < ReaderProgress.MIN_SESSION_SECONDS) return null
+        val summary = summary()
+        val text = excerpt?.text?.takeIf { it.isNotBlank() } ?: fallbackExcerpt()
+        if (text.isBlank()) return null
+        return PendingSession(
+            bookId = book.id,
+            minutesRead = summary.minutesRead,
+            fromPage = summary.fromPage,
+            toPage = summary.toPage,
+            pages = summary.pagesRead,
+            excerpt = text,
+            savedAtMs = System.currentTimeMillis()
+        )
     }
 
     /**
