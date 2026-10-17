@@ -136,7 +136,7 @@
     <SeekBar
         android:id="@+id/reader_seek"
         android:layout_width="match_parent"
-        android:layout_height="28dp"
+        android:layout_height="36dp"
         android:max="1000"
         android:paddingStart="12dp"
         android:paddingEnd="12dp"

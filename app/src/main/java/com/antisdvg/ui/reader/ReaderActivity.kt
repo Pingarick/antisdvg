@@ -30,6 +30,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -107,6 +108,9 @@ class ReaderActivity : AppCompatActivity() {
     /** True when the bars are hidden and only the text is on screen. */
     private var barsHidden = false
 
+    /** Progress before the last jump, so search/contents can be undone in one tap. */
+    private var placeBeforeJump: Double? = null
+
     /** Colors of the theme currently drawn, so the timer can dim itself when idle. */
     private var palette = paletteOf(ReaderTheme.PAPER)
 
@@ -166,7 +170,14 @@ class ReaderActivity : AppCompatActivity() {
         binding.readerFinish.setOnClickListener { onFinishClicked() }
         binding.readerMenu.setOnClickListener { showReaderMenu() }
         binding.readerSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(bar: SeekBar?, value: Int, fromUser: Boolean) = Unit
+            override fun onProgressChanged(bar: SeekBar?, value: Int, fromUser: Boolean) {
+                // Dragging says where it will land; the jump happens on release.
+                if (fromUser) {
+                    binding.readerPercent.text =
+                        getString(R.string.reader_jump_to, viewModel.pageAt(value / 1000.0))
+                }
+            }
+
             override fun onStartTrackingTouch(bar: SeekBar?) {
                 seeking = true
             }
@@ -176,6 +187,7 @@ class ReaderActivity : AppCompatActivity() {
                 // re-lay the book out hundreds of times.
                 seeking = false
                 lastActivityMs = SystemClock.elapsedRealtime()
+                rememberPlace()
                 evaluate("Reader.goToRatio(${(bar?.progress ?: 0) / 1000.0})")
             }
         })
@@ -655,7 +667,7 @@ class ReaderActivity : AppCompatActivity() {
                 var el = tocEls[index];
                 if (!el) { return; }
                 if (paged) {
-                  goToPage(tocItems[index].page);
+                  goToPage(pageOfElement(el) + 1);
                 } else {
                   el.scrollIntoView();
                 }
@@ -671,16 +683,17 @@ class ReaderActivity : AppCompatActivity() {
               // characters, but the blocks are already in memory.
               function searchText(query, limit) {
                 var needle = (query || '').trim().toLowerCase();
-                if (needle.length < 2) { return []; }
+                if (needle.length < 2) { return { hits: [], more: false }; }
                 var base = c.getBoundingClientRect().left;
-                var out = [];
+                var out = [], more = false;
                 var kids = c.children;
-                for (var i = 0; i < kids.length && out.length < limit; i++) {
+                for (var i = 0; i < kids.length; i++) {
                   var k = kids[i];
                   var raw = (k.textContent || '').replace(/\s+/g, ' ').trim();
                   if (!raw) { continue; }
                   var at = raw.toLowerCase().indexOf(needle);
                   if (at < 0) { continue; }
+                  if (out.length >= limit) { more = true; continue; }
                   var r = k.getBoundingClientRect();
                   var col = pageW > 0 ? Math.floor((r.left - base) / pageW + 0.001) : 0;
                   var from = Math.max(0, at - 40);
@@ -692,7 +705,7 @@ class ReaderActivity : AppCompatActivity() {
                              (to < raw.length ? ' …' : '')
                   });
                 }
-                return out;
+                return { hits: out, more: more };
               }
 
               // Marking the hit without touching the DOM: a <mark> would re-flow
@@ -709,8 +722,18 @@ class ReaderActivity : AppCompatActivity() {
                 } catch (e) { /* older engine: the jump still works */ }
               }
 
-              function goToHit(page, index) {
-                if (paged) { goToPage(page); } else { var k = c.children[index]; if (k) { k.scrollIntoView(); } }
+              // Pages are recomputed from the element at jump time, not taken from
+              // a list built before a font change: the block does not move, its
+              // page number does.
+              function pageOfElement(el) {
+                var base = c.getBoundingClientRect().left;
+                return clamp(Math.floor((el.getBoundingClientRect().left - base) / pageW + 0.001), 0, total - 1);
+              }
+
+              function goToHit(index) {
+                var k = c.children[index];
+                if (!k) { return; }
+                if (paged) { goToPage(pageOfElement(k) + 1); } else { k.scrollIntoView(); }
                 highlightBlock(index);
               }
 
@@ -955,6 +978,24 @@ class ReaderActivity : AppCompatActivity() {
         rows.addView(menuRow(R.string.reader_jump) { showJumpDialog() })
         rows.addView(menuRow(R.string.reader_bookmark_add) { addBookmark() })
         rows.addView(menuRow(R.string.reader_bookmarks) { showBookmarks() })
+        rows.addView(
+            menuRow(
+                if (volumeTurnsPages()) R.string.reader_volume_on else R.string.reader_volume_off
+            ) {
+                val next = !volumeTurnsPages()
+                uiPrefs.edit().putBoolean(KEY_VOLUME_TURN, next).apply()
+                toast(
+                    getString(if (next) R.string.reader_volume_on else R.string.reader_volume_off)
+                )
+            }
+        )
+        placeBeforeJump?.let { back ->
+            rows.addView(menuRow(R.string.reader_back) {
+                placeBeforeJump = null
+                evaluate("Reader.goToRatio($back)")
+                lastActivityMs = SystemClock.elapsedRealtime()
+            })
+        }
         rows.addView(menuRow(R.string.reader_clean_screen) { toggleBars() })
 
         AlertDialog.Builder(this)
@@ -983,7 +1024,17 @@ class ReaderActivity : AppCompatActivity() {
             }
             AlertDialog.Builder(this)
                 .setTitle(R.string.reader_contents)
-                .setItems(items.map { it.title }.toTypedArray()) { _, which -> jumpToItem(items[which]) }
+                .setItems(
+                    items.map { item ->
+                        // The chapter you are in is marked: a list of sixty titles
+                        // otherwise says nothing about where you are.
+                        if (item.title == viewModel.state.value.chapter) {
+                            getString(R.string.reader_toc_current, item.title)
+                        } else {
+                            item.title
+                        }
+                    }.toTypedArray()
+                ) { _, which -> jumpToItem(items[which]) }
                 .setNegativeButton(R.string.reader_stay, null)
                 .show()
         }
@@ -1004,14 +1055,22 @@ class ReaderActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Jumps by heading index, not by the page number in the list: the list may be
+     * a font change older than the layout, while the heading itself never moves.
+     */
     private fun jumpToItem(item: TocItem) {
-        // Paged mode jumps by page number, the ribbon by scrolling the heading in.
-        if (viewModel.state.value.mode == ReaderMode.PAGED) {
-            evaluate("Reader.goToPage(${item.page})")
-        } else {
-            evaluate("Reader.goToHeading(${item.index})")
-        }
+        rememberPlace()
+        evaluate("Reader.goToHeading(${item.index})")
         lastActivityMs = SystemClock.elapsedRealtime()
+    }
+
+    /**
+     * Where the reader was before jumping, so a search that went 400 pages away
+     * can be undone in one tap instead of another search.
+     */
+    private fun rememberPlace() {
+        if (placeBeforeJump == null) placeBeforeJump = viewModel.state.value.progress
     }
 
     /** Finds a phrase in the book and takes the reader to it. */
@@ -1039,19 +1098,26 @@ class ReaderActivity : AppCompatActivity() {
         binding.readerWeb.evaluateJavascript(
             "JSON.stringify(Reader.search(${JSONObject.quote(query)}))"
         ) { raw ->
-            val hits = parseHits(raw)
-            if (hits.isEmpty()) {
+            val found = parseHits(raw)
+            if (found.hits.isEmpty()) {
                 infoDialog(
                     getString(R.string.reader_search),
                     getString(R.string.reader_search_none, query.trim())
                 )
                 return@evaluateJavascript
             }
+            val title = if (found.more) {
+                getString(R.string.reader_search_results_more, found.hits.size)
+            } else {
+                getString(R.string.reader_search_results, found.hits.size)
+            }
             AlertDialog.Builder(this)
-                .setTitle(getString(R.string.reader_search_results, hits.size))
-                .setItems(hits.map { getString(R.string.reader_search_hit, it.snippet, it.page) }.toTypedArray()) { _, which ->
-                    val hit = hits[which]
-                    evaluate("Reader.goToHit(${hit.page}, ${hit.index})")
+                .setTitle(title)
+                .setItems(found.hits.map { getString(R.string.reader_search_hit, it.snippet, it.page) }.toTypedArray()) { _, which ->
+                    val hit = found.hits[which]
+                    rememberPlace()
+                    // By block, so the page is right even after a font change.
+                    evaluate("Reader.goToHit(${hit.index})")
                     lastActivityMs = SystemClock.elapsedRealtime()
                 }
                 .setNegativeButton(R.string.reader_stay, null)
@@ -1061,17 +1127,21 @@ class ReaderActivity : AppCompatActivity() {
 
     private data class SearchHit(val page: Int, val snippet: String, val index: Int)
 
-    private fun parseHits(raw: String?): List<SearchHit> {
-        if (raw.isNullOrBlank() || raw == "null") return emptyList()
+    private data class SearchFound(val hits: List<SearchHit>, val more: Boolean)
+
+    private fun parseHits(raw: String?): SearchFound {
+        if (raw.isNullOrBlank() || raw == "null") return SearchFound(emptyList(), false)
         val json = runCatching {
             val text = if (raw.startsWith("\"")) JSONTokener(raw).nextValue() as String else raw
-            JSONArray(text)
-        }.getOrNull() ?: return emptyList()
-        return (0 until json.length()).mapNotNull { i ->
-            val item = json.optJSONObject(i) ?: return@mapNotNull null
+            JSONObject(text)
+        }.getOrNull() ?: return SearchFound(emptyList(), false)
+        val array = json.optJSONArray("hits") ?: JSONArray()
+        val hits = (0 until array.length()).mapNotNull { i ->
+            val item = array.optJSONObject(i) ?: return@mapNotNull null
             val snippet = item.optString("snippet")
             if (snippet.isBlank()) null else SearchHit(item.optInt("page", 1), snippet, item.optInt("index", -1))
         }
+        return SearchFound(hits, json.optBoolean("more", false))
     }
 
     private fun showJumpDialog() {
@@ -1107,11 +1177,19 @@ class ReaderActivity : AppCompatActivity() {
         val state = viewModel.state.value
         val book = state.book ?: return
         val page = viewModel.currentPage()
+        // The chapter travels with the bookmark: "стр. 120" alone says nothing.
         lifecycleScope.launch {
-            repo.addBookmark(book.id, state.progress, page)
+            repo.addBookmark(book.id, state.progress, page, state.chapter)
             toast(getString(R.string.reader_bookmark_added, page))
         }
     }
+
+    private fun bookmarkLabel(mark: Bookmark): String =
+        if (mark.label.isBlank()) {
+            getString(R.string.reader_bookmark_goto, mark.page)
+        } else {
+            getString(R.string.reader_bookmark_labeled, mark.label, mark.page)
+        }
 
     private fun showBookmarks() {
         val book = viewModel.state.value.book ?: return
@@ -1123,8 +1201,9 @@ class ReaderActivity : AppCompatActivity() {
             }
             AlertDialog.Builder(this@ReaderActivity)
                 .setTitle(R.string.reader_bookmarks)
-                .setItems(marks.map { getString(R.string.reader_bookmark_goto, it.page) }.toTypedArray()) { _, which ->
+                .setItems(marks.map { bookmarkLabel(it) }.toTypedArray()) { _, which ->
                     val mark = marks[which]
+                    rememberPlace()
                     evaluate("Reader.goToRatio(${mark.progress})")
                     lastActivityMs = SystemClock.elapsedRealtime()
                 }
@@ -1137,7 +1216,7 @@ class ReaderActivity : AppCompatActivity() {
     private fun showDeleteBookmark(marks: List<Bookmark>) {
         AlertDialog.Builder(this)
             .setTitle(R.string.reader_bookmark_delete)
-            .setItems(marks.map { getString(R.string.reader_bookmark_goto, it.page) }.toTypedArray()) { _, which ->
+            .setItems(marks.map { bookmarkLabel(it) }.toTypedArray()) { _, which ->
                 val mark = marks[which]
                 lifecycleScope.launch {
                     repo.deleteBookmark(mark.id)
@@ -1185,14 +1264,27 @@ class ReaderActivity : AppCompatActivity() {
         binding.readerBar.visibility = visibility
         binding.readerSeek.visibility = visibility
         binding.readerBottom.visibility = visibility
+        // The system bars go too, or "clean screen" still has a clock in the corner.
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
+        if (barsHidden) {
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+            toast(getString(R.string.reader_hint_center))
+        } else {
+            controller.show(WindowInsetsCompat.Type.systemBars())
+        }
     }
+
+    private fun volumeTurnsPages(): Boolean = uiPrefs.getBoolean(KEY_VOLUME_TURN, true)
 
     /**
      * Volume keys turn pages, the way every e-reader does: one hand, phone in a
-     * fist, thumb on the volume rocker. Down is forward, up is back.
+     * fist, thumb on the volume rocker. Down is forward, up is back. Can be turned
+     * off from the menu for anyone who wants the keys back.
      */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 && !modalOpen) {
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 && !modalOpen &&
+            volumeTurnsPages()
+        ) {
             when (event.keyCode) {
                 KeyEvent.KEYCODE_VOLUME_DOWN -> {
                     evaluate("Reader.step(1)")
@@ -1515,6 +1607,9 @@ class ReaderActivity : AppCompatActivity() {
 
         /** Screen brightness the reader was left at; < 0 means "leave it alone". */
         private const val KEY_BRIGHTNESS = "brightness"
+
+        /** Volume keys turn pages by default; the menu can give them back. */
+        private const val KEY_VOLUME_TURN = "volume_turn"
 
         /** Reading a full screen without touching it must not pause the timer. */
         private const val IDLE_TIMEOUT_MS = 180_000L
