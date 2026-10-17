@@ -33,7 +33,7 @@
         android:layout_marginStart="24dp"
         android:layout_marginTop="4dp"
         android:layout_marginEnd="24dp"
-        android:fontFamily="serif"
+        android:fontFamily="sans-serif"
         android:textColor="@color/text_hint"
         android:textSize="14sp"
         tools:text="2 книги"
@@ -73,7 +73,9 @@
             android:id="@+id/empty_icon"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text=""
+            android:fontFamily="serif"
+            android:text="«"
+            android:textColor="@color/brass"
             android:textSize="48sp" />
 
         <TextView
@@ -112,7 +114,7 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/import_book_btn"
-        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        style="@style/Widget.Book.Button.Tonal"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="24dp"

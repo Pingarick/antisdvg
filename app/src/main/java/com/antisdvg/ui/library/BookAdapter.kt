@@ -89,13 +89,11 @@ class BookAdapter(
             binding.bookStatus.text = binding.root.context.getString(
                 if (finished) R.string.finished else R.string.in_progress
             )
-            // Status pill: green tint while reading, warm muted when finished.
-            binding.bookStatus.setBackgroundResource(
-                if (finished) R.drawable.bg_status_finished else R.drawable.bg_status_reading
-            )
+            // Words, not a badge: the state reads as letterspaced letters, and the
+            // difference between reading and finished is colour alone.
             binding.bookStatus.setTextColor(
                 binding.root.context.getColor(
-                    if (finished) R.color.gold_dark else R.color.accent_primary_dark
+                    if (finished) R.color.text_hint else R.color.brass
                 )
             )
             // "Сейчас читаю" eyebrow only for an in-progress book.
