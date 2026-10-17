@@ -321,6 +321,22 @@ class ReaderViewModel(
     /** How many questions the current test has (0 when none could be built). */
     fun questionCount(): Int = questions.size
 
+    /** What the session pays if the test is passed — shown before the test. */
+    fun expectedMinutes(): Int {
+        val summary = summary()
+        val format = _state.value.book?.format ?: return 0
+        return earnedMinutes(summary, format)
+    }
+
+    /**
+     * Drops an earlier page report. Called when the layout has nothing to say
+     * this time (ribbon mode, or the page is not ready yet), so a stale report
+     * from an earlier finish is never reused for the next summary.
+     */
+    fun clearExcerpt() {
+        excerpt = null
+    }
+
     /**
      * Ribbon mode has no pages to report, so there the test still comes from the
      * character range the progress covers, widened when the session was short.

@@ -33,6 +33,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.antisdvg.AntiSdvgApp
 import com.antisdvg.R
+import com.antisdvg.data.model.QuizQuestion
 import com.antisdvg.databinding.ActivityReaderBinding
 import com.antisdvg.ui.AppViewModelFactory
 import kotlinx.coroutines.launch
@@ -76,6 +77,13 @@ class ReaderActivity : AppCompatActivity() {
     private var lastMode: ReaderMode? = null
     private var savedPrefsKey = ""
     private var attempts = 0
+
+    /**
+     * Test prepared the moment the session ends, so the summary announces the
+     * real number of questions. The first attempt takes exactly this list; a
+     * retry generates fresh questions.
+     */
+    private var preparedQuestions: List<QuizQuestion>? = null
 
     /** Colors of the theme currently drawn, so the timer can dim itself when idle. */
     private var palette = paletteOf(ReaderTheme.PAPER)
@@ -710,17 +718,23 @@ class ReaderActivity : AppCompatActivity() {
 
     // ---- Session end ----
 
+    /**
+     * The corner ✕ means what it looks like: leave. Minutes are earned by the
+     * test, so the dialog says how many are on the table right now — walking out
+     * should never quietly cost an hour of reading.
+     */
     private fun confirmExit() {
         viewModel.persistProgress()
-        if (viewModel.isTooShort()) {
-            finish()
-            return
+        val message = if (viewModel.isTooShort()) {
+            getString(R.string.reader_exit_short)
+        } else {
+            getString(R.string.reader_exit_message, viewModel.expectedMinutes())
         }
         AlertDialog.Builder(this)
             .setTitle(R.string.reader_exit_title)
-            .setMessage(R.string.reader_exit_message)
-            .setPositiveButton(R.string.reader_finish) { _, _ -> onFinishClicked() }
-            .setNegativeButton(R.string.reader_stay, null)
+            .setMessage(message)
+            .setPositiveButton(R.string.reader_stay, null)
+            .setNegativeButton(R.string.reader_exit) { _, _ -> exitWithoutMinutes() }
             .show()
     }
 
@@ -731,7 +745,7 @@ class ReaderActivity : AppCompatActivity() {
                 .setTitle(R.string.reader_too_short_title)
                 .setMessage(R.string.reader_too_short)
                 .setPositiveButton(R.string.reader_stay, null)
-                .setNegativeButton(R.string.reader_exit) { _, _ -> finish() }
+                .setNegativeButton(R.string.reader_exit) { _, _ -> exitWithoutMinutes() }
                 .show()
             return
         }
@@ -739,16 +753,27 @@ class ReaderActivity : AppCompatActivity() {
         // shown, so its report is taken before the session is frozen. Otherwise
         // the summary and the test would describe a guess.
         pullExcerpt { excerpt ->
-            excerpt?.let { viewModel.noteExcerpt(it) }
+            if (excerpt == null) {
+                // Ribbon mode, or a page that is not ready: describe the session
+                // by progress, and never reuse an older report.
+                viewModel.clearExcerpt()
+            } else {
+                viewModel.noteExcerpt(excerpt)
+            }
             viewModel.freezeSession()
-            showSummary(viewModel.buildQuiz().size)
+            preparedQuestions = viewModel.buildQuiz()
+            showSummary(preparedQuestions?.size ?: 0)
         }
     }
 
     /**
      * What the session produced, and a chance to confirm it before the test: the
      * pages are the ones the layout showed, the questions are sized to how much
-     * was read.
+     * was read, and the reward is named before it is asked for.
+     *
+     * Three ways out: read on ([R.string.reader_stay]), leave without a test
+     * ([R.string.reader_exit], which is what "no test, no minutes" means), or
+     * take the test.
      */
     private fun showSummary(questionCount: Int) {
         val summary = viewModel.summary()
@@ -763,10 +788,11 @@ class ReaderActivity : AppCompatActivity() {
                 summary.minutesRead
             )
         }
+        val earned = viewModel.expectedMinutes()
         val ask = if (questionCount > 0) {
-            getString(R.string.reader_summary_ask, viewModel.totalPages(), questionCount)
+            getString(R.string.reader_summary_ask, viewModel.totalPages(), questionCount, earned)
         } else {
-            getString(R.string.reader_summary_no_test, viewModel.totalPages())
+            getString(R.string.reader_summary_no_test, viewModel.totalPages(), earned)
         }
         AlertDialog.Builder(this)
             .setTitle(R.string.reader_summary_title)
@@ -780,8 +806,20 @@ class ReaderActivity : AppCompatActivity() {
                     lifecycleScope.launch { award(viewModel.grantWithoutQuiz(), 0) }
                 }
             }
-            .setNegativeButton(R.string.reader_stay) { _, _ -> viewModel.unfreeze() }
+            .setNeutralButton(R.string.reader_stay) { _, _ -> backToReading() }
+            .setNegativeButton(R.string.reader_exit) { _, _ -> exitWithoutMinutes() }
             .show()
+    }
+
+    /**
+     * Leaves the reader without taking the test: the reading and the bookmark
+     * stay, the minutes of this session are not claimed. Said out loud, because
+     * walking out is exactly how someone loses an hour of reading by accident.
+     */
+    private fun exitWithoutMinutes() {
+        viewModel.persistProgress()
+        toast(getString(R.string.reader_exit_no_minutes))
+        finish()
     }
 
     /**
@@ -814,7 +852,10 @@ class ReaderActivity : AppCompatActivity() {
 
     private fun startQuiz() {
         attempts++
-        val questions = viewModel.buildQuiz()
+        // The first attempt is exactly the test the summary announced; a retry
+        // gets fresh questions from the same pages.
+        val questions = preparedQuestions ?: viewModel.buildQuiz()
+        preparedQuestions = null
         if (questions.isEmpty()) {
             // Text too small to build an honest test: gate on real reading time only.
             lifecycleScope.launch { award(viewModel.grantWithoutQuiz(), 0) }
@@ -825,10 +866,16 @@ class ReaderActivity : AppCompatActivity() {
             val pad = (resources.displayMetrics.density * 20).toInt()
             setPadding(pad, pad, pad, pad)
         }
-        // The count follows how much was read, so say it: five questions for a
-        // long read is not the same deal as one for a single screen.
+        // Where the questions come from and how many there are: the test is
+        // sized to the reading, so it must say so.
+        val summary = viewModel.summary()
+        val where = if (summary.fromPage == summary.toPage) {
+            summary.fromPage.toString()
+        } else {
+            getString(R.string.reader_page_range, summary.fromPage, summary.toPage)
+        }
         container.addView(TextView(this).apply {
-            text = getString(R.string.reader_quiz_header, questions.size)
+            text = getString(R.string.reader_quiz_header, questions.size, where)
             textSize = 13f
             alpha = 0.7f
             setPadding(0, 0, 0, 12)
@@ -858,7 +905,8 @@ class ReaderActivity : AppCompatActivity() {
             .setTitle(R.string.reader_quiz_title)
             .setView(scroll)
             .setPositiveButton(R.string.reader_check, null)
-            .setNegativeButton(R.string.reader_stay) { _, _ -> backToReading() }
+            .setNeutralButton(R.string.reader_stay) { _, _ -> backToReading() }
+            .setNegativeButton(R.string.reader_exit) { _, _ -> exitWithoutMinutes() }
             .create()
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
@@ -892,13 +940,14 @@ class ReaderActivity : AppCompatActivity() {
             .setPositiveButton(if (canRetry) R.string.reader_retry else R.string.reader_stay) { _, _ ->
                 if (canRetry) startQuiz() else backToReading()
             }
-            .setNegativeButton(R.string.reader_exit) { _, _ -> finish() }
+            .setNegativeButton(R.string.reader_exit) { _, _ -> exitWithoutMinutes() }
             .show()
     }
 
     /** The user goes back to the book: the session continues counting honestly. */
     private fun backToReading() {
         attempts = 0
+        preparedQuestions = null
         viewModel.unfreeze()
     }
 
