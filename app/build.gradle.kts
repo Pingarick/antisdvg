@@ -30,8 +30,18 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // DeepSeek API key injected from gradle.properties at build time.
-        val deepSeekKey = (project.findProperty("DEEPSEEK_API_KEY") as String?) ?: ""
+        // DeepSeek API key, baked into the app.
+        //
+        // Until 2026-10-17 the key came only from ~/.gradle/gradle.properties so
+        // the secret never reached the repo. The owner then asked for it to ship
+        // inside the app ("пока что это только для меня, поэтому включай сразу
+        // этот ключ в приложение, потом если что уберём") — so the constant below
+        // is what the build uses, and it IS a secret in the sources and in git
+        // history. Override a build with -PDEEPSEEK_API_KEY=... ; the value in
+        // ~/.gradle is deliberately not consulted, it still holds the older key.
+        val builtInDeepSeekKey = "REDACTED_IN_HISTORY"
+        val deepSeekKey = project.gradle.startParameter.projectProperties["DEEPSEEK_API_KEY"]
+            ?: builtInDeepSeekKey
         buildConfigField("String", "DEEPSEEK_API_KEY", "\"$deepSeekKey\"")
     }
 
