@@ -59,5 +59,6 @@
     <!-- Feedback -->
     <color name="success">#4F7A42</color>
     <color name="error">#B3492F</color>
+    <color name="error_tint">#18B3492F</color>
     <color name="info">#5B6E86</color>
 </resources>

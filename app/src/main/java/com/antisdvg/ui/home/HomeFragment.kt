@@ -18,7 +18,9 @@ import com.antisdvg.R
 import com.antisdvg.data.model.Book
 import com.antisdvg.data.model.progressPercent
 import com.antisdvg.databinding.FragmentHomeBinding
+import com.antisdvg.service.BlockerService
 import com.antisdvg.ui.AppViewModelFactory
+import com.antisdvg.util.BlockerStatus
 import com.bumptech.glide.Glide
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -76,8 +78,32 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             viewModel.state.collectLatest { state ->
                 renderStats(state)
                 renderActiveBook(state.activeBook, state.hasBooks)
+                renderBlockerWarning(state.settings.blockerEnabled)
             }
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // The blocker can be switched off (or back on) from a system screen while
+        // this app is in the background, and that is not in the database.
+        renderBlockerWarning(viewModel.state.value.settings.blockerEnabled)
+    }
+
+    /**
+     * The fence is down, and saying so is the most useful thing this screen can
+     * do: the app is otherwise claiming to protect and doing nothing.
+     */
+    private fun renderBlockerWarning(enabledInSettings: Boolean) {
+        val serviceOn = BlockerStatus.isServiceEnabled(requireContext(), BlockerService::class.java)
+        val down = !enabledInSettings || !serviceOn
+        binding.homeBlockerWarning.isVisible = down
+        binding.homeBlockerWarning.setOnClickListener {
+            startActivity(
+                android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
         }
     }
 

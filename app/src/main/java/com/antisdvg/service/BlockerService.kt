@@ -82,6 +82,49 @@ class BlockerService : AccessibilityService() {
     @Volatile
     private var emergencyMinutes: Int = EMERGENCY_MINUTES_PER_TOKEN
 
+    /**
+     * The interrupted visit, on disk.
+     *
+     * The in-flight spend lived only in memory, so a service restart in the middle
+     * of a visit quietly forgot the minute that had already started — and killing
+     * the service became a way not to pay. The state is kept here and settled when
+     * the service comes back.
+     */
+    private val spendPrefs by lazy { getSharedPreferences("blocker_spend", Context.MODE_PRIVATE) }
+
+    private fun persistSpendSession(packageName: String?, startedMs: Long, lastMinuteMs: Long) {
+        if (packageName == null) return
+        spendPrefs.edit()
+            .putString(SPEND_PKG, packageName)
+            .putLong(SPEND_STARTED, startedMs)
+            .putLong(SPEND_LAST_MINUTE, lastMinuteMs)
+            .apply()
+    }
+
+    private fun clearSpendSession() {
+        spendPrefs.edit().clear().apply()
+    }
+
+    /**
+     * Settles a visit a restart interrupted: the started minute is charged (the
+     * same rule as walking out by hand), unless the service was gone long enough
+     * that charging would be a guess — then the visit is simply forgotten.
+     */
+    private fun settleInterruptedSpend() {
+        val pkg = spendPrefs.getString(SPEND_PKG, null) ?: return
+        val started = spendPrefs.getLong(SPEND_STARTED, 0L)
+        val lastMinute = spendPrefs.getLong(SPEND_LAST_MINUTE, 0L)
+        clearSpendSession()
+        if (started == 0L || lastMinute == 0L) return
+        val gap = System.currentTimeMillis() - lastMinute
+        val visited = lastMinute - started
+        Log.d("BlockerSvc", "settle interrupted spend pkg=$pkg visited=${visited}ms gap=${gap}ms")
+        if (gap <= INTERRUPTED_SPEND_MS && visited >= 10_000) {
+            prefs.tickDownRemaining(1)
+            flushSpentMinutes(1)
+        }
+    }
+
     // Fields for the overlay view.
     private var blockView: android.view.View? = null
 
@@ -111,6 +154,17 @@ class BlockerService : AccessibilityService() {
         const val REMINDER_CHANNEL_ID = "reading_reminders"
         const val NOTIFICATION_ID = 1001
         const val REMINDER_NOTIFICATION_ID = 1002
+
+        /** Warning that the fence is down; cannot be swiped away. */
+        const val WARNING_NOTIFICATION_ID = 1003
+        const val WARNING_CHANNEL_ID = "blocker_warning"
+
+        /** How long a restart may take before an interrupted visit is forgotten. */
+        private const val INTERRUPTED_SPEND_MS = 2 * 60 * 1000L
+
+        private const val SPEND_PKG = "pkg"
+        private const val SPEND_STARTED = "started"
+        private const val SPEND_LAST_MINUTE = "lastMinute"
 
         /** Minutes granted when the user spends one emergency token. */
         const val EMERGENCY_MINUTES_PER_TOKEN = 10
@@ -143,6 +197,10 @@ class BlockerService : AccessibilityService() {
 
         // Start foreground notification so the user knows the blocker is on.
         startForegroundNotification()
+        // The fence is back: take the warning down and settle whatever visit a
+        // restart interrupted.
+        cancelBlockerWarning()
+        settleInterruptedSpend()
 
         registerReceiver(
             refreshReceiver,
@@ -233,6 +291,7 @@ class BlockerService : AccessibilityService() {
         val now = System.currentTimeMillis()
         spendSessionStartMs = now
         lastMinuteSpendMs = now
+        persistSpendSession(activeApp, now, now)
         spendJob = serviceScope.launch {
             while (coroutineContext.isActive) {
                 delay(15_000)
@@ -240,6 +299,7 @@ class BlockerService : AccessibilityService() {
                 val elapsed = System.currentTimeMillis()
                 if (elapsed - lastMinuteSpendMs < 60_000) continue
                 lastMinuteSpendMs = elapsed
+                persistSpendSession(activeApp, spendSessionStartMs, elapsed)
                 val newRemaining = prefs.tickDownRemaining(1)
                 updateFloatingTimerText(newRemaining)
                 if (newRemaining == 1) {
@@ -313,6 +373,64 @@ class BlockerService : AccessibilityService() {
 
     override fun onInterrupt() {
         // Accessibility may temporarily interrupt; nothing special needed.
+    }
+
+    /**
+     * The system unbinds the service when the user (or something else) switches it
+     * off. That is the moment the app must stop pretending: without the service
+     * there is no blocking at all, and saying nothing would leave the fence down
+     * for days while the app still claimed everything was fine.
+     */
+    override fun onUnbind(intent: android.content.Intent?): Boolean {
+        Log.d("BlockerSvc", "onUnbind: the blocker is being switched off")
+        runCatching { showBlockerWarning() }
+        return super.onUnbind(intent)
+    }
+
+    private fun showBlockerWarning() {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            nm.createNotificationChannel(
+                NotificationChannel(
+                    WARNING_CHANNEL_ID,
+                    getString(R.string.blocker_warning_channel),
+                    NotificationManager.IMPORTANCE_HIGH
+                )
+            )
+        }
+        val open = android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        val pending = PendingIntent.getActivity(
+            this,
+            2,
+            open,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, WARNING_CHANNEL_ID)
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
+        }
+        nm.notify(
+            WARNING_NOTIFICATION_ID,
+            builder
+                .setContentTitle(getString(R.string.blocker_warning_title))
+                .setContentText(getString(R.string.blocker_warning_text))
+                .setSmallIcon(R.drawable.ic_launcher)
+                .setContentIntent(pending)
+                .setOngoing(true)
+                .setAutoCancel(false)
+                .build()
+        )
+    }
+
+    private fun cancelBlockerWarning() {
+        runCatching {
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.cancel(WARNING_NOTIFICATION_ID)
+        }
     }
 
     override fun onDestroy() {

@@ -50,5 +50,6 @@
 
     <color name="success">#7FA968</color>
     <color name="error">#D9735A</color>
+    <color name="error_tint">#33D9735A</color>
     <color name="info">#8AA0BC</color>
 </resources>

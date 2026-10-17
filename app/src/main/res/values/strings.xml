@@ -146,6 +146,11 @@
 
     <!-- Blocker overlay -->
     <string name="blocked_mark">«</string>
+    <string name="blocker_warning_channel">Состояние блокировки</string>
+    <string name="blocker_warning_title">Блокировка выключена</string>
+    <string name="blocker_warning_text">Приложения не ограничиваются. Открой настройки и включи Anti-SDVG.</string>
+    <string name="home_blocker_off">Приложения не ограничиваются — блокировка выключена</string>
+    <string name="home_blocker_off_action">Починить</string>
     <string name="blocked_message">Минуты кончились</string>
     <string name="blocked_hint">Почитай немного — и они вернутся. Ты уже знаешь, что это работает.</string>
     <string name="blocked_unlock">Читать сейчас</string>
