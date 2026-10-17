@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Full-screen overlay shown by BlockerService when a blocked app is launched
-  but the user has no remaining fun time and no emergency tokens.
+  The wall, at the moment of the craving.
+
+  It used to say "доступ заблокирован" and offer three identical buttons. Now it
+  reads like the app talks: the minutes ran out, the way back is one tap, and the
+  choice of what to do next is a real choice — read, spend a token, or leave.
+  Built with plain Buttons and a ContextThemeWrapper: MaterialComponents does not
+  render in a service window.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -14,47 +19,57 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
         android:fontFamily="serif"
-        android:text="📖"
-        android:textSize="56sp" />
+        android:text="@string/blocked_mark"
+        android:textColor="@color/brass"
+        android:textSize="48sp" />
 
     <TextView
         android:id="@+id/block_message"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
         android:fontFamily="serif"
         android:gravity="center"
-        android:textColor="@color/brown"
-        android:textSize="20sp"
-        android:textStyle="bold" />
+        android:textColor="@color/text_primary"
+        android:textSize="20sp" />
+
+    <TextView
+        android:id="@+id/block_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:text="@string/blocked_hint"
+        android:textColor="@color/text_secondary"
+        android:textSize="14sp" />
 
     <Button
         android:id="@+id/block_unlock"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="28dp"
         android:background="@drawable/overlay_button"
-        android:minHeight="48dp"
+        android:minHeight="52dp"
         android:text="@string/blocked_unlock"
         android:textColor="@color/on_accent" />
 
     <Button
         android:id="@+id/block_spend_token"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:background="@drawable/overlay_button"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/overlay_button_tonal"
         android:minHeight="48dp"
         android:text="@string/blocked_spend_token"
-        android:textColor="@color/on_accent" />
+        android:textColor="@color/accent_primary" />
 
     <Button
         android:id="@+id/block_exit"
         style="@style/Widget.Book.Button.Text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="6dp"
         android:text="@string/blocked_exit" />
 
 </LinearLayout>

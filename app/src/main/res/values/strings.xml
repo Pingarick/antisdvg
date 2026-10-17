@@ -66,16 +66,25 @@
     <string name="focus_title">Фокус-сессия</string>
     <string name="focus_phase_idle">Готов к 25 минутам без отвлечений?</string>
     <string name="focus_phase_focus">Фокус: убери телефон и читай</string>
-    <string name="focus_phase_break">Перерыв 5 минут ☕</string>
+    <string name="focus_phase_break">Перерыв 5 минут</string>
     <string name="focus_phase_done">Готово! Можно начинать новый цикл</string>
     <string name="focus_start">Начать</string>
     <string name="focus_pause">Пауза</string>
     <string name="focus_stop">Сбросить</string>
     <string name="focus_skip_break">Пропустить перерыв</string>
     <string name="focus_cycles">Циклов сегодня: %1$d</string>
-    <string name="focus_earned">+ %1$d мин за фокус 🎉</string>
+    <string name="focus_earned">+ %1$d мин за фокус</string>
     <string name="focus_hint">Завершённый 25-минутный блок приносит минуты отдыха 1:1. Пауза не сбрасывает прогресс, уход с экрана — отменяет забег.</string>
-    <string name="home_start_focus">Начать фокус-сессию ⏱</string>
+    <string name="home_start_focus">Начать фокус-сессию</string>
+    <string name="home_read">Читать</string>
+    <string name="home_empty_mark">«</string>
+    <string name="home_wallet_spent">сегодня потрачено %1$d мин</string>
+    <plurals name="home_streak_days">
+        <item quantity="one">%d день подряд</item>
+        <item quantity="few">%d дня подряд</item>
+        <item quantity="many">%d дней подряд</item>
+        <item quantity="other">%d дня подряд</item>
+    </plurals>
     <string name="home_goal_empty">Копилка: пока нет цели</string>
     <string name="home_goal_empty_hint">Заведи цель кнопкой «Цель…» и откладывай по 10 мин</string>
     <string name="home_goal_progress">%1$d из %2$d мин</string>
@@ -84,14 +93,14 @@
     <string name="home_goal_break">Разбить копилку</string>
     <string name="home_goal_title_hint">На что копим?</string>
     <string name="home_goal_target_hint">Сколько минут?</string>
-    <string name="home_goal_saved">Отложено %1$d мин 🐷</string>
+    <string name="home_goal_saved">Отложено %1$d мин</string>
     <string name="home_goal_released">Копилка разбита: +%1$d мин в кошелёк</string>
     <string name="home_goal_released_simple">Копилка разбита, минуты вернулись в кошелёк</string>
-    <string name="home_goal_done">Цель достигнута! 🎉</string>
+    <string name="home_goal_done">Цель достигнута!</string>
 <string name="home_goal_need_more">На кошельке меньше 10 минут — нечего пока откладывать</string>
     <string name="widget_label">Анти-СДВГ: кошелёк</string>
     <string name="widget_desc">Минуты отдыха и огоньки без открытия приложения</string>
-    <string name="widget_tokens">🔥 %1$d</string>
+    <string name="widget_tokens">%1$d</string>
     <string name="stats_focus_label">Минут фокуса</string>
     <string name="check_progress">Проверить</string>
     <string name="microphone_hint">Голосовой ввод</string>
@@ -136,10 +145,12 @@
     <string name="minutes_per_page">Минут доступа за 1 страницу</string>
 
     <!-- Blocker overlay -->
-    <string name="blocked_message">Доступ заблокирован.\n\nУ тебя нет доступа времени. Прочитай книгу, чтобы заработать время для развлечений.</string>
-    <string name="blocked_unlock">Хочу читать книгу</string>
-    <string name="blocked_spend_token">Потратить огонёк (+10 мин)</string>
-    <string name="blocked_exit">Выйти на домашний экран</string>
+    <string name="blocked_mark">«</string>
+    <string name="blocked_message">Минуты кончились</string>
+    <string name="blocked_hint">Почитай немного — и они вернутся. Ты уже знаешь, что это работает.</string>
+    <string name="blocked_unlock">Читать сейчас</string>
+    <string name="blocked_spend_token">Потратить огонёк (+%1$d мин)</string>
+    <string name="blocked_exit">Позже</string>
 
     <!-- Blocker foreground notification -->
     <string name="blocker_notification_channel">Блокировка отвлекающих приложений</string>
@@ -164,7 +175,7 @@
     <string name="stats_wallet_label">Заработанное время на развлечения</string>
     <string name="stats_wallet_hint">минут за чтение — тратьте на отдых</string>
     <string name="stats_token_hint">осталось огоньков экстренного доступа</string>
-    <string name="stats_token_count">🕯️ %1$d</string>
+    <string name="stats_token_count">%1$d</string>
     <string name="stats_spend_token">Потратить огонёк (+10 мин)</string>
     <string name="stats_reading_section">Чтение</string>
     <string name="stats_period_week">Неделя</string>

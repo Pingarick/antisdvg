@@ -39,7 +39,9 @@ class BookAdapter(
         fun bind(book: Book) {
             binding.root.setOnClickListener { onClick(book) }
             binding.bookEdit.setOnClickListener { onEdit(book) }
-            binding.bookCover.text = book.coverEmoji.ifBlank { "📖" }
+            // No cover and no download: the title's initial, set like a spine
+            // label, rather than an emoji standing in for every book alike.
+            binding.bookCover.text = book.title.trim().firstOrNull()?.uppercase() ?: "—"
             if (book.coverUrl.isNotBlank()) {
                 binding.bookCoverImage.visibility = android.view.View.VISIBLE
                 // If the remote cover can't be downloaded (offline, dead link,

@@ -1,20 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Lora, the reading serif.
+
+  Each weight needs its own `app:fontWeight` as well as the variation setting:
+  without it every entry claims to be regular, the family resolves to nothing, and
+  Android silently falls back to the system sans — which is why the app looked
+  like every other app even though the serif was in the project all along.
+-->
 <font-family xmlns:app="http://schemas.android.com/apk/res-auto">
-    <!-- Lora Variable (reading serif): regular / medium via fontVariationSettings -->
     <font
         app:font="@font/lora_var"
         app:fontStyle="normal"
+        app:fontWeight="400"
         app:fontVariationSettings="'wght' 400" />
     <font
         app:font="@font/lora_var"
         app:fontStyle="normal"
+        app:fontWeight="500"
         app:fontVariationSettings="'wght' 500" />
     <font
         app:font="@font/lora_var"
         app:fontStyle="normal"
+        app:fontWeight="600"
         app:fontVariationSettings="'wght' 600" />
     <font
         app:font="@font/lora_var"
         app:fontStyle="normal"
+        app:fontWeight="700"
         app:fontVariationSettings="'wght' 700" />
 </font-family>

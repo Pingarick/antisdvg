@@ -56,6 +56,9 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/reader_menu"
             android:padding="6dp"
+            android:minWidth="44dp"
+            android:minHeight="44dp"
+            android:gravity="center"
             android:text="☰"
             android:textColor="@color/text_secondary"
             android:textSize="17sp"
@@ -68,7 +71,10 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/reader_theme"
             android:padding="6dp"
-            android:text="🌓"
+            android:minWidth="44dp"
+            android:minHeight="44dp"
+            android:gravity="center"
+            android:text="◐"
             android:textSize="18sp" />
 
         <TextView
@@ -79,6 +85,9 @@
             android:contentDescription="@string/reader_font_family"
             android:fontFamily="serif"
             android:padding="6dp"
+            android:minWidth="44dp"
+            android:minHeight="44dp"
+            android:gravity="center"
             android:text="@string/reader_font_glyph"
             android:textColor="@color/text_secondary"
             android:textSize="17sp"
@@ -91,6 +100,9 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/reader_mode"
             android:padding="6dp"
+            android:minWidth="44dp"
+            android:minHeight="44dp"
+            android:gravity="center"
             android:text="⇄"
             android:textColor="@color/text_secondary"
             android:textSize="17sp"
@@ -103,6 +115,9 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/reader_font_smaller"
             android:padding="6dp"
+            android:minWidth="44dp"
+            android:minHeight="44dp"
+            android:gravity="center"
             android:text="A-"
             android:textColor="@color/text_secondary"
             android:textSize="15sp"
@@ -115,6 +130,9 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/reader_font_bigger"
             android:padding="6dp"
+            android:minWidth="44dp"
+            android:minHeight="44dp"
+            android:gravity="center"
             android:text="A+"
             android:textColor="@color/text_secondary"
             android:textSize="15sp"
@@ -127,6 +145,9 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/reader_close"
             android:padding="6dp"
+            android:minWidth="44dp"
+            android:minHeight="44dp"
+            android:gravity="center"
             android:text="✕"
             android:textColor="@color/text_secondary"
             android:textSize="18sp" />
@@ -197,6 +218,9 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/reader_listen"
             android:padding="6dp"
+            android:minWidth="44dp"
+            android:minHeight="44dp"
+            android:gravity="center"
             android:text="@string/reader_tts_play"
             android:textColor="@color/text_secondary"
             android:textSize="18sp" />
@@ -208,7 +232,7 @@
             android:text="@string/reader_finish"
             android:textColor="@color/on_accent"
             app:backgroundTint="@color/accent_primary"
-            app:cornerRadius="22dp" />
+            app:cornerRadius="10dp" />
     </LinearLayout>
 
 </LinearLayout>

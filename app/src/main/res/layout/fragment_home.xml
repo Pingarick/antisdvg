@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Home dashboard: greeting, streak, continue-reading card, today's stats,
-  wallet summary and a 7-day bar mini-chart. Built on the Modern Editorial
-  design system (semantic colors, Manrope/Lora, dimens tokens).
+  The reading room.
+
+  Not a dashboard: the current book is the hero and has one obvious action,
+  numbers are set as type rather than boxed into tiles, and the only decoration
+  is a hairline. Everything the fragment binds keeps its id.
 -->
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -23,11 +25,12 @@
         android:paddingTop="@dimen/screen_padding_v"
         android:paddingBottom="@dimen/space_xxxl">
 
-        <!-- ===== Greeting header ===== -->
+        <!-- ===== Greeting: a line of the book, with the streak as plain type ===== -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
+            android:baselineAligned="true"
+            android:gravity="bottom"
             android:orientation="horizontal">
 
             <LinearLayout
@@ -52,436 +55,377 @@
                     android:textAppearance="@style/TextAppearance.Md.Body2" />
             </LinearLayout>
 
-            <!-- Streak chip -->
-            <com.google.android.material.card.MaterialCardView
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/space_sm"
-                app:cardBackgroundColor="@color/accent_primary_light"
-                app:cardCornerRadius="@dimen/radius_md"
-                app:cardElevation="0dp">
+                android:layout_marginStart="@dimen/space_md"
+                android:gravity="end"
+                android:orientation="vertical">
 
-                <LinearLayout
+                <TextView
+                    android:id="@+id/home_streak_count"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="@dimen/space_md"
-                    android:paddingVertical="@dimen/space_sm">
+                    android:text="0"
+                    android:fontFamily="serif"
+                        android:textAppearance="@style/TextAppearance.Md.Headline"
+                    android:textColor="@color/brass"
+                    tools:ignore="HardcodedText" />
 
-                    <TextView
-                        android:id="@+id/home_streak_count"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="0"
-                        android:textAppearance="@style/TextAppearance.Md.Title"
-                        android:textColor="@color/accent_primary_dark"
-                        tools:ignore="HardcodedText" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/space_xs"
-                        android:text="🔥"
-                        android:textSize="18sp"
-                        tools:ignore="HardcodedText" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+                <TextView
+                    android:id="@+id/home_streak_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textAppearance="@style/TextAppearance.Md.Label"
+                    tools:text="6 дней подряд" />
+            </LinearLayout>
         </LinearLayout>
 
-        <!-- ===== Continue reading card ===== -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="@dimen/space_lg"
+            android:background="@color/divider" />
+
+        <!-- ===== The hero: the book being read, and one action ===== -->
         <TextView
             android:id="@+id/home_continue_section_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_xxl"
+            android:layout_marginTop="@dimen/space_lg"
             android:text="@string/home_continue_section"
-            android:textAppearance="@style/TextAppearance.Md.Label"
-            android:textColor="@color/text_secondary" />
+            android:textAppearance="@style/TextAppearance.Md.Label" />
 
-        <com.google.android.material.card.MaterialCardView
+        <LinearLayout
             android:id="@+id/home_continue_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_md"
-            app:cardBackgroundColor="@color/surface"
-            app:cardCornerRadius="@dimen/radius_lg"
-            app:cardElevation="@dimen/elevation_sm"
-            app:cardUseCompatPadding="true"
-            app:strokeColor="@color/divider"
-            app:strokeWidth="1dp">
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:orientation="vertical"
+            android:paddingTop="@dimen/space_md">
 
             <LinearLayout
                 android:id="@+id/home_continue_body"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="@dimen/space_lg">
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                <!-- A cover if the book has one, otherwise its initial, set like a spine -->
+                <FrameLayout
+                    android:layout_width="@dimen/cover_width"
+                    android:layout_height="@dimen/cover_height"
+                    android:background="@color/surface">
 
-                    <!-- Emoji cover; real cover overlays it -->
                     <TextView
-                        android:id="@+id/home_cover_emoji"
-                        android:layout_width="@dimen/cover_width"
-                        android:layout_height="@dimen/cover_height"
-                        android:background="@color/accent_primary_light"
+                        android:id="@+id/home_cover_letter"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/bg_cover_block"
+                        android:fontFamily="serif"
                         android:gravity="center"
-                        android:text="📖"
-                        android:textSize="40sp"
+                        android:text="—"
+                        android:textColor="@color/brass"
+                        android:textSize="34sp"
                         tools:ignore="HardcodedText" />
 
                     <ImageView
                         android:id="@+id/home_cover_image"
-                        android:layout_width="@dimen/cover_width"
-                        android:layout_height="@dimen/cover_height"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
                         android:contentDescription="@string/editor_cover_preview"
                         android:scaleType="centerCrop"
-                        android:visibility="gone"
+                        android:visibility="gone" />
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/space_lg"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/home_book_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="2"
+                        android:text="@string/home_no_active"
+                        android:fontFamily="serif"
+                        android:textAppearance="@style/TextAppearance.Md.Headline"
                         tools:ignore="HardcodedText" />
 
-                    <LinearLayout
-                        android:layout_width="0dp"
+                    <TextView
+                        android:id="@+id/home_book_author"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/space_lg"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
+                        android:layout_marginTop="2dp"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:text=""
+                        android:textAppearance="@style/TextAppearance.Md.Body2"
+                        tools:ignore="HardcodedText" />
 
-                        <TextView
-                            android:id="@+id/home_book_title"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:maxLines="2"
-                            android:ellipsize="end"
-                            android:text="@string/home_no_active"
-                            android:textAppearance="@style/TextAppearance.Md.Title"
-                            tools:ignore="HardcodedText" />
+                    <TextView
+                        android:id="@+id/home_book_pages"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_sm"
+                        android:text=""
+                        android:textAppearance="@style/TextAppearance.Md.Caption"
+                        android:textColor="@color/text_hint"
+                        tools:ignore="HardcodedText" />
 
-                        <TextView
-                            android:id="@+id/home_book_author"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="@dimen/space_xs"
-                            android:maxLines="1"
-                            android:ellipsize="end"
-                            android:text=""
-                            android:textAppearance="@style/TextAppearance.Md.Body2"
-                            tools:ignore="HardcodedText" />
-
-                        <TextView
-                            android:id="@+id/home_book_pages"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="@dimen/space_xs"
-                            android:text=""
-                            android:textAppearance="@style/TextAppearance.Md.Caption"
-                            android:textColor="@color/text_hint"
-                            tools:ignore="HardcodedText" />
-                    </LinearLayout>
+                    <TextView
+                        android:id="@+id/home_progress_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text=""
+                        android:textAppearance="@style/TextAppearance.Md.Caption"
+                        android:textColor="@color/brass"
+                        tools:ignore="HardcodedText" />
                 </LinearLayout>
-
-                <!-- Progress bar -->
-                <TextView
-                    android:id="@+id/home_progress_label"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_lg"
-                    android:text=""
-                    android:textAppearance="@style/TextAppearance.Md.Caption"
-                    android:textColor="@color/accent_primary"
-                    tools:ignore="HardcodedText" />
-
-                <ProgressBar
-                    android:id="@+id/home_progress_bar"
-                    style="?android:attr/progressBarStyleHorizontal"
-                    android:layout_width="match_parent"
-                    android:layout_height="6dp"
-                    android:layout_marginTop="@dimen/space_sm"
-                    android:max="100"
-                    android:progress="0"
-                    android:progressBackgroundTint="@color/accent_primary_light"
-                    android:progressTint="@color/accent_primary" />
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
 
-        <!-- ===== Today's stats ===== -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_xxl"
-            android:text="@string/home_today_section"
-            android:textAppearance="@style/TextAppearance.Md.Label"
-            android:textColor="@color/text_secondary" />
+            <ProgressBar
+                android:id="@+id/home_progress_bar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:layout_marginTop="@dimen/space_md"
+                android:max="100"
+                android:progress="0"
+                android:progressBackgroundTint="@color/divider"
+                android:progressTint="@color/brass" />
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/home_read_btn"
+                style="@style/Widget.Book.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_md"
+                android:text="@string/home_read"
+                android:textAllCaps="false" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="@dimen/space_lg"
+            android:background="@color/divider" />
+
+        <!-- ===== Today, as one sentence ===== -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_md"
-            android:orientation="horizontal">
+            android:layout_marginTop="@dimen/space_lg"
+            android:orientation="vertical">
 
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="0dp"
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                app:cardBackgroundColor="@color/surface"
-                app:cardCornerRadius="@dimen/radius_lg"
-                app:cardElevation="@dimen/elevation_sm"
-                app:strokeColor="@color/divider"
-                app:strokeWidth="1dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/space_lg">
-
-                    <TextView
-                        android:id="@+id/home_today_minutes"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="0"
-                        android:textAppearance="@style/TextAppearance.Md.Headline"
-                        android:textColor="@color/accent_primary_dark"
-                        tools:ignore="HardcodedText" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_xs"
-                        android:text="@string/home_today_minutes"
-                        android:textAppearance="@style/TextAppearance.Md.Caption"
-                        android:textColor="@color/text_hint" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/space_md"
-                android:layout_weight="1"
-                app:cardBackgroundColor="@color/surface"
-                app:cardCornerRadius="@dimen/radius_lg"
-                app:cardElevation="@dimen/elevation_sm"
-                app:strokeColor="@color/divider"
-                app:strokeWidth="1dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/space_lg">
-
-                    <TextView
-                        android:id="@+id/home_today_pages"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="0"
-                        android:textAppearance="@style/TextAppearance.Md.Headline"
-                        android:textColor="@color/accent_primary_dark"
-                        tools:ignore="HardcodedText" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="@dimen/space_xs"
-                        android:text="@string/home_today_pages"
-                        android:textAppearance="@style/TextAppearance.Md.Caption"
-                        android:textColor="@color/text_hint" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-        </LinearLayout>
-
-        <!-- ===== Wallet summary ===== -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/home_wallet_card"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_md"
-            app:cardBackgroundColor="@color/accent_primary_light"
-            app:cardCornerRadius="@dimen/radius_lg"
-            app:cardElevation="0dp">
+                android:text="@string/home_today_section"
+                android:textAppearance="@style/TextAppearance.Md.Label" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:padding="@dimen/space_lg">
+                android:layout_marginTop="@dimen/space_sm"
+                android:orientation="horizontal">
 
                 <TextView
-                    android:id="@+id/home_wallet_minutes"
+                    android:id="@+id/home_today_minutes"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="0"
-                    android:textAppearance="@style/TextAppearance.Md.Headline"
-                    android:textColor="@color/accent_primary_dark"
+                    android:fontFamily="serif"
+                android:textAppearance="@style/TextAppearance.Md.Title"
                     tools:ignore="HardcodedText" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/space_sm"
-                    android:layout_marginEnd="@dimen/space_sm"
-                    android:text="·"
-                    android:textAppearance="@style/TextAppearance.Md.Title"
-                    android:textColor="@color/accent_primary"
+                    android:layout_marginStart="@dimen/space_xs"
+                    android:layout_marginEnd="@dimen/space_md"
+                    android:text="@string/home_today_minutes"
+                    android:textAppearance="@style/TextAppearance.Md.Body2"
+                    android:textColor="@color/text_hint" />
+
+                <TextView
+                    android:id="@+id/home_today_pages"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:fontFamily="serif"
+                android:textAppearance="@style/TextAppearance.Md.Title"
                     tools:ignore="HardcodedText" />
 
                 <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/space_xs"
+                    android:text="@string/home_today_pages"
+                    android:textAppearance="@style/TextAppearance.Md.Body2"
+                    android:textColor="@color/text_hint" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ===== Wallet: the number this app is really about ===== -->
+        <LinearLayout
+            android:id="@+id/home_wallet_card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_lg"
+            android:background="@color/surface"
+            android:orientation="horizontal"
+            android:baselineAligned="true"
+            android:padding="@dimen/space_lg">
+
+            <TextView
+                android:id="@+id/home_wallet_minutes"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0"
+                android:textAppearance="@style/TextAppearance.Md.Number"
+                android:textColor="@color/brass"
+                tools:ignore="HardcodedText" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/space_md"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/home_wallet_hint"
+                    android:textAppearance="@style/TextAppearance.Md.Body" />
+
+                <TextView
+                    android:id="@+id/home_wallet_spent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textAppearance="@style/TextAppearance.Md.Caption"
+                    android:textColor="@color/text_hint"
+                    tools:text="сегодня потрачено 12 мин" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ===== Savings goal: a rule that fills, not a bank card ===== -->
+        <LinearLayout
+            android:id="@+id/home_goal_card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_lg"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/home_goal_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/home_goal_empty"
+                android:fontFamily="serif"
+                android:textAppearance="@style/TextAppearance.Md.Title"
+                tools:ignore="HardcodedText" />
+
+            <TextView
+                android:id="@+id/home_goal_progress_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textAppearance="@style/TextAppearance.Md.Caption"
+                android:textColor="@color/text_hint"
+                tools:text="0 из 120 мин" />
+
+            <ProgressBar
+                android:id="@+id/home_goal_bar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:layout_marginTop="@dimen/space_sm"
+                android:max="100"
+                android:progress="0"
+                android:progressBackgroundTint="@color/divider"
+                android:progressTint="@color/brass" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_md"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/home_goal_deposit_btn"
+                    style="@style/Widget.Book.Button"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/space_sm"
+                    android:layout_weight="1"
+                    android:text="@string/home_goal_deposit"
+                    android:textAllCaps="false" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/home_goal_edit_btn"
+                    style="@style/Widget.Book.Button.Tonal"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="@string/home_wallet_hint"
-                    android:textAppearance="@style/TextAppearance.Md.Body2"
-                    android:textColor="@color/accent_primary_dark" />
+                    android:text="@string/home_goal_edit"
+                    android:textAllCaps="false" />
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
 
-        <!-- ===== Focus entry ===== -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/home_goal_break_btn"
+                style="@style/Widget.Book.Button.Text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/home_goal_break"
+                android:textAllCaps="false" />
+        </LinearLayout>
+
+        <!-- ===== Second way to earn: focus ===== -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/home_start_focus_btn"
             style="@style/Widget.Book.Button.Tonal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_md"
+            android:layout_marginTop="@dimen/space_lg"
             android:text="@string/home_start_focus"
             android:textAllCaps="false" />
 
-        <!-- ===== Savings goal ("копилка") ===== -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/home_goal_card"
+        <View
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_md"
-            app:cardBackgroundColor="@color/surface"
-            app:cardCornerRadius="@dimen/radius_lg"
-            app:cardElevation="@dimen/elevation_sm"
-            app:strokeColor="@color/divider"
-            app:strokeWidth="1dp">
+            android:layout_height="1dp"
+            android:layout_marginTop="@dimen/space_xl"
+            android:background="@color/divider" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="@dimen/space_lg">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="🐷"
-                        android:textSize="22sp"
-                        tools:ignore="HardcodedText" />
-
-                    <TextView
-                        android:id="@+id/home_goal_title"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="8"
-                        android:layout_marginStart="@dimen/space_sm"
-                        android:maxLines="1"
-                        android:ellipsize="end"
-                        android:text="@string/home_goal_empty"
-                        android:textAppearance="@style/TextAppearance.Md.Title"
-                        tools:ignore="HardcodedText" />
-                </LinearLayout>
-
-                <TextView
-                    android:id="@+id/home_goal_progress_label"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_sm"
-                    android:textAppearance="@style/TextAppearance.Md.Caption"
-                    android:textColor="@color/accent_primary"
-                    tools:text="0 из 120 мин" />
-
-                <ProgressBar
-                    android:id="@+id/home_goal_bar"
-                    style="?android:attr/progressBarStyleHorizontal"
-                    android:layout_width="match_parent"
-                    android:layout_height="6dp"
-                    android:layout_marginTop="@dimen/space_sm"
-                    android:max="100"
-                    android:progress="0"
-                    android:progressBackgroundTint="@color/accent_primary_light"
-                    android:progressTint="@color/accent_primary" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_md"
-                    android:orientation="horizontal">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/home_goal_deposit_btn"
-                        style="@style/Widget.Book.Button"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="@dimen/space_sm"
-                        android:layout_weight="1"
-                        android:text="@string/home_goal_deposit"
-                        android:textAllCaps="false" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/home_goal_edit_btn"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/home_goal_edit"
-                        android:textAllCaps="false" />
-                </LinearLayout>
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/home_goal_break_btn"
-                    style="@style/Widget.Book.Button.Text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_xs"
-                    android:text="@string/home_goal_break"
-                    android:textAllCaps="false" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- ===== 7-day mini chart ===== -->
+        <!-- ===== The week, as a quiet bar line ===== -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/space_xxl"
+            android:layout_marginTop="@dimen/space_lg"
             android:text="@string/home_week_section"
-            android:textAppearance="@style/TextAppearance.Md.Label"
-            android:textColor="@color/text_secondary" />
+            android:textAppearance="@style/TextAppearance.Md.Label" />
 
-        <com.google.android.material.card.MaterialCardView
+        <LinearLayout
+            android:id="@+id/home_week_chart"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="120dp"
             android:layout_marginTop="@dimen/space_md"
-            app:cardBackgroundColor="@color/surface"
-            app:cardCornerRadius="@dimen/radius_lg"
-            app:cardElevation="@dimen/elevation_sm"
-            app:strokeColor="@color/divider"
-            app:strokeWidth="1dp">
+            android:gravity="bottom"
+            android:orientation="horizontal" />
 
-            <LinearLayout
-                android:id="@+id/home_week_chart"
-                android:layout_width="match_parent"
-                android:layout_height="140dp"
-                android:gravity="bottom"
-                android:orientation="horizontal"
-                android:padding="@dimen/space_lg" />
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- ===== Empty state (placeholders) ===== -->
+        <!-- ===== Nobody has a book yet ===== -->
         <LinearLayout
             android:id="@+id/home_empty_state"
             android:layout_width="match_parent"
@@ -489,32 +433,32 @@
             android:layout_marginTop="@dimen/space_xxl"
             android:gravity="center"
             android:orientation="vertical"
-            android:padding="@dimen/space_lg"
             android:visibility="gone"
             tools:visibility="visible">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="📚"
-                android:textSize="48sp"
-                tools:ignore="HardcodedText" />
+                android:text="@string/home_empty_mark"
+                android:textAppearance="@style/TextAppearance.Md.Number"
+                android:textColor="@color/brass" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/space_md"
+                android:gravity="center"
                 android:text="@string/home_add_first_book"
-                android:textAppearance="@style/TextAppearance.Md.Title"
-                android:gravity="center" />
+                android:fontFamily="serif"
+                android:textAppearance="@style/TextAppearance.Md.Title" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/space_sm"
+                android:gravity="center"
                 android:text="@string/home_add_book_hint"
-                android:textAppearance="@style/TextAppearance.Md.Body2"
-                android:gravity="center" />
+                android:textAppearance="@style/TextAppearance.Md.Body2" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/home_go_library_btn"

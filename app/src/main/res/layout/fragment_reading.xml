@@ -251,7 +251,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="🎙️ Надиктовать пересказ голосом"
+                    android:text=" Надиктовать пересказ голосом"
                     android:textColor="@color/brown"
                     app:strokeColor="@color/gold_dark"
                     android:textSize="14sp" />
@@ -350,7 +350,7 @@
                 android:fontFamily="serif"
                 android:textColor="@color/muted_text"
                 android:textSize="13sp"
-                tools:text="🕯️ Огоньки: 2" />
+                tools:text=" Огоньки: 2" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_use_emergency"

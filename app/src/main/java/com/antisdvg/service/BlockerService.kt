@@ -75,6 +75,13 @@ class BlockerService : AccessibilityService() {
     private var spendSessionStartMs: Long = 0L
     private var lastMinuteSpendMs: Long = 0L
 
+    /**
+     * What one emergency token buys, cached for the overlay's label: the overlay
+     * is built on the main thread and must not read the database there.
+     */
+    @Volatile
+    private var emergencyMinutes: Int = EMERGENCY_MINUTES_PER_TOKEN
+
     // Fields for the overlay view.
     private var blockView: android.view.View? = null
 
@@ -334,6 +341,8 @@ class BlockerService : AccessibilityService() {
             runOnMain {
                 blockerEnabled = settings?.blockerEnabled ?: true
                 dailyLimitMin = settings?.dailyLimitMin ?: 0
+                emergencyMinutes = (settings?.emergencyMinutes ?: EMERGENCY_MINUTES_PER_TOKEN)
+                    .coerceAtLeast(0)
                 blockedPackages = enabled
             }
         }
@@ -357,16 +366,29 @@ class BlockerService : AccessibilityService() {
         val view = android.view.LayoutInflater.from(themed).inflate(R.layout.view_block_overlay, null)
         view.findViewById<TextView>(R.id.block_message).text =
             getString(R.string.blocked_message)
+        // The price of a token is a setting, so the button names the real number.
+        view.findViewById<Button>(R.id.block_spend_token).text =
+            getString(R.string.blocked_spend_token, emergencyMinutes)
 
         view.findViewById<Button>(R.id.block_unlock).setOnClickListener {
             Log.d("BlockerSvc", "overlay: unlock tapped")
-            // Open the app so the user can decide to read for time.
-            val intent = Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                putExtra("from_blocker", true)
-            }
-            startActivity(intent)
             removeBlockView()
+            // Straight into the book when there is one. At the moment of the
+            // craving a trip through the home screen is a second chance to give up.
+            val dao = AppDatabase.getInstance(this@BlockerService).appDao()
+            serviceScope.launch(Dispatchers.IO) {
+                val book = runCatching { dao.findActive() }.getOrNull()
+                withContext(Dispatchers.Main) {
+                    val target = if (book != null && book.filePath.isNotBlank()) {
+                        Intent(this@BlockerService, com.antisdvg.ui.reader.ReaderActivity::class.java)
+                            .putExtra(com.antisdvg.ui.reader.ReaderActivity.EXTRA_BOOK_ID, book.id)
+                    } else {
+                        Intent(this@BlockerService, MainActivity::class.java)
+                    }
+                    target.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    startActivity(target)
+                }
+            }
         }
 
         // Spend an emergency token for a grace period from settings instead of reading.

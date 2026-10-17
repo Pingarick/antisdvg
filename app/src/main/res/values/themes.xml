@@ -1,14 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
+    <!--
+      A reading room, not a dashboard.
+
+      Headings speak in Lora — the serif the app already ships and reads Russian
+      in — while controls stay in Manrope. Cards lose their floating shadow and
+      become paper with a hairline: the page is the depth here, not the chrome.
+    -->
     <style name="Theme.AntiSvdg" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <!-- Modern Editorial palette -->
         <item name="colorPrimary">@color/accent_primary</item>
         <item name="colorPrimaryVariant">@color/accent_primary_dark</item>
         <item name="colorOnPrimary">@color/on_accent</item>
 
-        <item name="colorSecondary">@color/gold</item>
-        <item name="colorSecondaryVariant">@color/gold_dark</item>
+        <item name="colorSecondary">@color/brass</item>
+        <item name="colorSecondaryVariant">@color/brass_dark</item>
         <item name="colorOnSecondary">@color/text_primary</item>
 
         <item name="colorError">@color/error</item>
@@ -18,49 +24,65 @@
         <item name="colorSurface">@color/surface</item>
         <item name="colorOnSurface">@color/text_primary</item>
 
-        <item name="android:statusBarColor">@color/surface</item>
-        <item name="android:navigationBarColor">@color/surface</item>
+        <item name="android:statusBarColor">@color/background</item>
+        <item name="android:navigationBarColor">@color/background</item>
         <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
         <item name="android:windowBackground">@color/background</item>
         <item name="android:textColorHint">@color/text_secondary</item>
-
-        <!-- UI font: Manrope -->
-        <item name="android:fontFamily">@font/manrope</item>
+        <!--
+          No android:fontFamily here on purpose: an attribute set by the theme
+          outranks every android:textAppearance, so leaving it in forces one face
+          on the whole app and silently discards Lora in the headings. Each
+          TextAppearance names its own family instead.
+        -->
     </style>
 
-    <!-- ============ Typography system: Manrope (UI) ============ -->
+    <!-- ============ Type: Lora for the book's voice, Manrope for the handles ============ -->
+
     <style name="TextAppearance.Md.Display" parent="TextAppearance.MaterialComponents.Headline1">
-        <item name="android:textSize">34sp</item>
-        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:textSize">32sp</item>
+        <item name="android:fontFamily">serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:letterSpacing">-0.015</item>
+    </style>
+
+    <style name="TextAppearance.Md.Headline" parent="TextAppearance.MaterialComponents.Headline5">
+        <item name="android:textSize">26sp</item>
+        <item name="android:fontFamily">serif</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:letterSpacing">-0.01</item>
     </style>
 
-    <style name="TextAppearance.Md.Headline" parent="TextAppearance.MaterialComponents.Headline5">
-        <item name="android:textSize">28sp</item>
-        <item name="android:fontFamily">@font/manrope</item>
-        <item name="android:textStyle">bold</item>
+    <style name="TextAppearance.Md.Title" parent="TextAppearance.MaterialComponents.Headline6">
+        <item name="android:textSize">19sp</item>
+        <item name="android:fontFamily">serif</item>
         <item name="android:textColor">@color/text_primary</item>
     </style>
 
-    <style name="TextAppearance.Md.Title" parent="TextAppearance.MaterialComponents.Headline6">
-        <item name="android:textSize">20sp</item>
-        <item name="android:fontFamily">@font/manrope</item>
-        <item name="android:textStyle">bold</item>
+    <!-- The one number that matters most (minutes in the wallet) -->
+    <style name="TextAppearance.Md.Number" parent="TextAppearance.MaterialComponents.Headline3">
+        <item name="android:textSize">44sp</item>
+        <item name="android:fontFamily">serif</item>
         <item name="android:textColor">@color/text_primary</item>
+        <item name="android:letterSpacing">-0.02</item>
+        <item name="android:fontFeatureSettings">tnum</item>
     </style>
 
     <style name="TextAppearance.Md.Body" parent="TextAppearance.MaterialComponents.Body2">
         <item name="android:textSize">16sp</item>
         <item name="android:fontFamily">@font/manrope</item>
         <item name="android:textColor">@color/text_primary</item>
+        <item name="android:lineSpacingMultiplier">1.3</item>
     </style>
 
     <style name="TextAppearance.Md.Body2" parent="TextAppearance.MaterialComponents.Body1">
         <item name="android:textSize">14sp</item>
         <item name="android:fontFamily">@font/manrope</item>
         <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:lineSpacingMultiplier">1.3</item>
     </style>
 
     <style name="TextAppearance.Md.Caption" parent="TextAppearance.MaterialComponents.Caption">
@@ -69,52 +91,71 @@
         <item name="android:textColor">@color/text_secondary</item>
     </style>
 
+    <!-- Small caps, letterspaced: the editorial way to label a section -->
     <style name="TextAppearance.Md.Label" parent="TextAppearance.MaterialComponents.Button">
-        <item name="android:textSize">12sp</item>
+        <item name="android:textSize">11sp</item>
         <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:textStyle">bold</item>
         <item name="android:textAllCaps">true</item>
-        <item name="android:letterSpacing">0.05</item>
+        <item name="android:letterSpacing">0.14</item>
         <item name="android:textColor">@color/text_secondary</item>
     </style>
 
-    <!-- Reading font: Lora (serif) -->
     <style name="TextAppearance.Book.Reading" parent="TextAppearance.MaterialComponents.Body1">
-        <item name="android:fontFamily">@font/lora</item>
+        <item name="android:fontFamily">serif</item>
         <item name="android:textSize">18sp</item>
-        <item name="android:lineSpacingMultiplier">1.4</item>
+        <item name="android:lineSpacingMultiplier">1.45</item>
         <item name="android:textColor">@color/text_primary</item>
     </style>
 
-    <!-- ============ Back-compat Book styles (legacy layouts depend on names) ============ -->
+    <!-- ============ Back-compat names the legacy layouts depend on ============ -->
     <style name="TextAppearance.Book.Headline" parent="TextAppearance.Md.Headline" />
 
     <style name="TextAppearance.Book.Title" parent="TextAppearance.Md.Title" />
 
-    <!-- Card surface -->
+    <!-- Paper with a hairline, instead of a tile floating over the page -->
     <style name="Widget.Book.Card" parent="Widget.MaterialComponents.CardView">
         <item name="cardBackgroundColor">@color/surface</item>
-        <item name="cardCornerRadius">16dp</item>
-        <item name="cardElevation">2dp</item>
+        <item name="cardCornerRadius">14dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="strokeColor">@color/divider</item>
         <item name="cardUseCompatPadding">true</item>
     </style>
 
-    <!-- Primary CTA -->
+    <style name="Widget.Book.Card.Plain" parent="Widget.Book.Card">
+        <item name="cardCornerRadius">0dp</item>
+        <item name="strokeWidth">0dp</item>
+        <item name="cardUseCompatPadding">false</item>
+    </style>
+
+    <!-- Primary action: leather, not a neon pill -->
     <style name="Widget.Book.Button" parent="Widget.MaterialComponents.Button">
         <item name="backgroundTint">@color/accent_primary</item>
         <item name="android:textColor">@color/on_accent</item>
-        <item name="cornerRadius">12dp</item>
+        <item name="cornerRadius">10dp</item>
         <item name="android:minHeight">48dp</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="elevation">0dp</item>
     </style>
 
-    <!-- Tonal button (secondary action) -->
-    <style name="Widget.Book.Button.Tonal" parent="Widget.MaterialComponents.Button">
-        <item name="backgroundTint">@color/accent_primary_light</item>
-        <item name="android:textColor">@color/accent_primary_dark</item>
-        <item name="cornerRadius">12dp</item>
+    <!-- Secondary action: ink on paper, outlined -->
+    <style name="Widget.Book.Button.Tonal" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="strokeColor">@color/divider</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="android:textColor">@color/accent_primary</item>
+        <item name="cornerRadius">10dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:textStyle">bold</item>
+        <item name="elevation">0dp</item>
     </style>
 
-    <!-- Text button -->
     <style name="Widget.Book.Button.Text" parent="Widget.MaterialComponents.Button.TextButton">
         <item name="android:textColor">@color/accent_primary</item>
+        <item name="android:fontFamily">@font/manrope</item>
     </style>
 </resources>

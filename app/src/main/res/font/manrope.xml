@@ -1,20 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Manrope, the interface face. Same rule as Lora: every weight carries both
+  `app:fontWeight` and its variation setting, or the family falls back to the
+  system font and every screen quietly looks like a stock Android app.
+-->
 <font-family xmlns:app="http://schemas.android.com/apk/res-auto">
-    <!-- Manrope Variable: regular / medium / semibold / bold via fontVariationSettings -->
     <font
         app:font="@font/manrope_var"
         app:fontStyle="normal"
+        app:fontWeight="400"
         app:fontVariationSettings="'wght' 400" />
     <font
         app:font="@font/manrope_var"
         app:fontStyle="normal"
+        app:fontWeight="500"
         app:fontVariationSettings="'wght' 500" />
     <font
         app:font="@font/manrope_var"
         app:fontStyle="normal"
+        app:fontWeight="600"
         app:fontVariationSettings="'wght' 600" />
     <font
         app:font="@font/manrope_var"
         app:fontStyle="normal"
+        app:fontWeight="700"
         app:fontVariationSettings="'wght' 700" />
+    <font
+        app:font="@font/manrope_var"
+        app:fontStyle="normal"
+        app:fontWeight="800"
+        app:fontVariationSettings="'wght' 800" />
 </font-family>

@@ -42,23 +42,10 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             findNavController().navigate(R.id.nav_library)
         }
 
-        binding.homeContinueCard.setOnClickListener {
-            val book = viewModel.state.value.activeBook
-            if (book != null) {
-                if (book.filePath.isNotBlank()) {
-                    // Electronic books continue in the built-in reader.
-                    startActivity(
-                        android.content.Intent(requireContext(), com.antisdvg.ui.reader.ReaderActivity::class.java)
-                            .putExtra(com.antisdvg.ui.reader.ReaderActivity.EXTRA_BOOK_ID, book.id)
-                    )
-                } else {
-                    findNavController().navigate(
-                        R.id.nav_reading,
-                        Bundle().apply { putLong("bookId", book.id) }
-                    )
-                }
-            }
-        }
+        binding.homeContinueCard.setOnClickListener { continueReading() }
+        // The hero's own button is the front door: the card stays tappable, but
+        // the action a person actually reaches for is the one made obvious.
+        binding.homeReadBtn.setOnClickListener { continueReading() }
 
         binding.homeStartFocusBtn.setOnClickListener {
             findNavController().navigate(R.id.nav_focus)
@@ -96,9 +83,22 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
     private fun renderStats(state: HomeUiState) {
         binding.homeStreakCount.text = state.stats.currentStreak.toString()
+        binding.homeStreakLabel.text = resources.getQuantityString(
+            R.plurals.home_streak_days,
+            state.stats.currentStreak,
+            state.stats.currentStreak
+        )
         binding.homeTodayMinutes.text = state.todayMinutes.toString()
         binding.homeTodayPages.text = state.todayPages.toString()
         binding.homeWalletMinutes.text = state.wallet.minutesRemaining.toString()
+        // What was spent today belongs next to what is left: one number without
+        // the other says nothing about the day.
+        val spentToday = state.stats.spentTodayMinutes
+        binding.homeWalletSpent.text = if (spentToday > 0) {
+            getString(R.string.home_wallet_spent, spentToday)
+        } else {
+            ""
+        }
         renderWeek(state.week)
         renderGoal(state)
     }
@@ -190,7 +190,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             binding.homeBookPages.text = ""
             binding.homeProgressLabel.text = ""
             binding.homeProgressBar.progress = 0
-            binding.homeCoverEmoji.text = "📚"
+            binding.homeCoverLetter.text = "—"
             binding.homeCoverImage.visibility = View.GONE
             return
         }
@@ -204,13 +204,32 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         )
         binding.homeProgressLabel.text = getString(R.string.home_progress, book.progressPercent)
         binding.homeProgressBar.progress = book.progressPercent
-        binding.homeCoverEmoji.text = book.coverEmoji.takeIf { it.isNotBlank() } ?: "📖"
+        // No cover: the title's initial, set like a spine label, instead of an
+        // emoji standing in for every book in the world.
+        binding.homeCoverLetter.text = book.title.trim().firstOrNull()?.uppercase() ?: "—"
         if (book.coverUrl.isNotBlank()) {
             binding.homeCoverImage.visibility = View.VISIBLE
             Glide.with(this).load(book.coverUrl).into(binding.homeCoverImage)
         } else {
             binding.homeCoverImage.visibility = View.GONE
             binding.homeCoverImage.setImageDrawable(null)
+        }
+    }
+
+    /** Straight into the book: the reader for an imported file, the prompt for paper. */
+    private fun continueReading() {
+        val book = viewModel.state.value.activeBook ?: return
+        if (book.filePath.isNotBlank()) {
+            // Electronic books continue in the built-in reader.
+            startActivity(
+                android.content.Intent(requireContext(), com.antisdvg.ui.reader.ReaderActivity::class.java)
+                    .putExtra(com.antisdvg.ui.reader.ReaderActivity.EXTRA_BOOK_ID, book.id)
+            )
+        } else {
+            findNavController().navigate(
+                R.id.nav_reading,
+                Bundle().apply { putLong("bookId", book.id) }
+            )
         }
     }
 
