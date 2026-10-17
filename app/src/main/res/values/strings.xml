@@ -318,6 +318,12 @@
     <string name="reader_contents_empty">В этой книге не нашлось ни одной главы.</string>
     <string name="reader_jump">Перейти к странице</string>
     <string name="reader_jump_title">Страница 1–%1$d</string>
+    <string name="reader_search">Поиск по книге</string>
+    <string name="reader_search_hint">слово или фраза</string>
+    <string name="reader_search_go">Искать</string>
+    <string name="reader_search_none">Ничего не нашлось по запросу «%1$s».</string>
+    <string name="reader_search_results">Нашлось: %1$d</string>
+    <string name="reader_search_hit">%1$s\nстр. %2$d</string>
     <string name="reader_jump_go">Перейти</string>
     <string name="reader_bookmarks">Закладки</string>
     <string name="reader_bookmarks_empty">Закладок пока нет. Жми «Добавить закладку», чтобы запомнить место.</string>

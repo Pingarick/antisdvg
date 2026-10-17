@@ -488,6 +488,9 @@ class ReaderActivity : AppCompatActivity() {
               p{margin:0 0 0.9em;text-align:justify;orphans:2;widows:2;
                 -webkit-hyphens:auto;hyphens:auto;}
               .gap{height:0.7em;}
+              /* Search hits: highlighted through the CSS highlight registry, so the
+                 DOM (and therefore the page numbers) never move. */
+              ::highlight(search){background-color:rgba(255,198,40,0.45);}
             </style></head>
             <body class="$startClass">
             <div id="vp"><div id="content">${state.html}</div></div>
@@ -662,6 +665,55 @@ class ReaderActivity : AppCompatActivity() {
                 if (paged) { go(cur + dir); } else { window.scrollBy(0, dir * window.innerHeight * 0.9); }
               }
 
+              // ---- Search ----
+
+              // One pass over the blocks, on demand: a big book is millions of
+              // characters, but the blocks are already in memory.
+              function searchText(query, limit) {
+                var needle = (query || '').trim().toLowerCase();
+                if (needle.length < 2) { return []; }
+                var base = c.getBoundingClientRect().left;
+                var out = [];
+                var kids = c.children;
+                for (var i = 0; i < kids.length && out.length < limit; i++) {
+                  var k = kids[i];
+                  var raw = (k.textContent || '').replace(/\s+/g, ' ').trim();
+                  if (!raw) { continue; }
+                  var at = raw.toLowerCase().indexOf(needle);
+                  if (at < 0) { continue; }
+                  var r = k.getBoundingClientRect();
+                  var col = pageW > 0 ? Math.floor((r.left - base) / pageW + 0.001) : 0;
+                  var from = Math.max(0, at - 40);
+                  var to = Math.min(raw.length, at + needle.length + 40);
+                  out.push({
+                    page: clamp(col, 0, total - 1) + 1,
+                    index: i,
+                    snippet: (from > 0 ? '… ' : '') + raw.substring(from, to).trim() +
+                             (to < raw.length ? ' …' : '')
+                  });
+                }
+                return out;
+              }
+
+              // Marking the hit without touching the DOM: a <mark> would re-flow
+              // the columns and move every page number in the app.
+              function highlightBlock(index) {
+                if (!window.CSS || !CSS.highlights || !window.Highlight) { return; }
+                var k = c.children[index];
+                if (!k) { return; }
+                try {
+                  var range = document.createRange();
+                  range.selectNodeContents(k);
+                  CSS.highlights.clear();
+                  CSS.highlights.set('search', new Highlight(range));
+                } catch (e) { /* older engine: the jump still works */ }
+              }
+
+              function goToHit(page, index) {
+                if (paged) { goToPage(page); } else { var k = c.children[index]; if (k) { k.scrollIntoView(); } }
+                highlightBlock(index);
+              }
+
               function goToRatio(r) {
                 var value = clamp(r, 0, 1);
                 if (paged) {
@@ -789,6 +841,8 @@ class ReaderActivity : AppCompatActivity() {
                 goToHeading: goToHeading,
                 goToRatio: goToRatio,
                 step: step,
+                search: function (query) { return searchText(query, 50); },
+                goToHit: goToHit,
                 // What the session should be judged on: the screens really shown
                 // and their text. Null in ribbon mode, where the reader has no
                 // pages of its own and Kotlin falls back to the progress range.
@@ -897,6 +951,7 @@ class ReaderActivity : AppCompatActivity() {
         rows.addView(brightnessLabel)
         rows.addView(slider)
         rows.addView(menuRow(R.string.reader_contents) { showContents() })
+        rows.addView(menuRow(R.string.reader_search) { showSearch() })
         rows.addView(menuRow(R.string.reader_jump) { showJumpDialog() })
         rows.addView(menuRow(R.string.reader_bookmark_add) { addBookmark() })
         rows.addView(menuRow(R.string.reader_bookmarks) { showBookmarks() })
@@ -957,6 +1012,66 @@ class ReaderActivity : AppCompatActivity() {
             evaluate("Reader.goToHeading(${item.index})")
         }
         lastActivityMs = SystemClock.elapsedRealtime()
+    }
+
+    /** Finds a phrase in the book and takes the reader to it. */
+    private fun showSearch() {
+        val input = EditText(this).apply {
+            hint = getString(R.string.reader_search_hint)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            maxLines = 1
+        }
+        val pad = (resources.displayMetrics.density * 20).toInt()
+        val wrapper = FrameLayout(this).apply {
+            setPadding(pad, pad / 2, pad, 0)
+            addView(input)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.reader_search)
+            .setView(wrapper)
+            .setPositiveButton(R.string.reader_search_go) { _, _ -> runSearch(input.text.toString()) }
+            .setNegativeButton(R.string.reader_stay, null)
+            .show()
+    }
+
+    private fun runSearch(query: String) {
+        if (query.trim().length < 2) return
+        binding.readerWeb.evaluateJavascript(
+            "JSON.stringify(Reader.search(${JSONObject.quote(query)}))"
+        ) { raw ->
+            val hits = parseHits(raw)
+            if (hits.isEmpty()) {
+                infoDialog(
+                    getString(R.string.reader_search),
+                    getString(R.string.reader_search_none, query.trim())
+                )
+                return@evaluateJavascript
+            }
+            AlertDialog.Builder(this)
+                .setTitle(getString(R.string.reader_search_results, hits.size))
+                .setItems(hits.map { getString(R.string.reader_search_hit, it.snippet, it.page) }.toTypedArray()) { _, which ->
+                    val hit = hits[which]
+                    evaluate("Reader.goToHit(${hit.page}, ${hit.index})")
+                    lastActivityMs = SystemClock.elapsedRealtime()
+                }
+                .setNegativeButton(R.string.reader_stay, null)
+                .show()
+        }
+    }
+
+    private data class SearchHit(val page: Int, val snippet: String, val index: Int)
+
+    private fun parseHits(raw: String?): List<SearchHit> {
+        if (raw.isNullOrBlank() || raw == "null") return emptyList()
+        val json = runCatching {
+            val text = if (raw.startsWith("\"")) JSONTokener(raw).nextValue() as String else raw
+            JSONArray(text)
+        }.getOrNull() ?: return emptyList()
+        return (0 until json.length()).mapNotNull { i ->
+            val item = json.optJSONObject(i) ?: return@mapNotNull null
+            val snippet = item.optString("snippet")
+            if (snippet.isBlank()) null else SearchHit(item.optInt("page", 1), snippet, item.optInt("index", -1))
+        }
     }
 
     private fun showJumpDialog() {
