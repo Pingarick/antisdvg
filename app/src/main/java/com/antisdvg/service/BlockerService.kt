@@ -92,12 +92,18 @@ class BlockerService : AccessibilityService() {
      */
     private val spendPrefs by lazy { getSharedPreferences("blocker_spend", Context.MODE_PRIVATE) }
 
-    private fun persistSpendSession(packageName: String?, startedMs: Long, lastMinuteMs: Long) {
+    private fun persistSpendSession(
+        packageName: String?,
+        startedMs: Long,
+        lastMinuteMs: Long,
+        lastSeenMs: Long = lastMinuteMs
+    ) {
         if (packageName == null) return
         spendPrefs.edit()
             .putString(SPEND_PKG, packageName)
             .putLong(SPEND_STARTED, startedMs)
             .putLong(SPEND_LAST_MINUTE, lastMinuteMs)
+            .putLong(SPEND_LAST_SEEN, lastSeenMs)
             .apply()
     }
 
@@ -114,10 +120,15 @@ class BlockerService : AccessibilityService() {
         val pkg = spendPrefs.getString(SPEND_PKG, null) ?: return
         val started = spendPrefs.getLong(SPEND_STARTED, 0L)
         val lastMinute = spendPrefs.getLong(SPEND_LAST_MINUTE, 0L)
+        // How long the visit really lasted comes from the heartbeat, not from the
+        // last charged minute: until a full minute has been charged that number is
+        // still zero, so a 15-second visit interrupted by a restart used to settle
+        // as "visited 0ms" and cost nothing at all.
+        val lastSeen = spendPrefs.getLong(SPEND_LAST_SEEN, lastMinute)
         clearSpendSession()
-        if (started == 0L || lastMinute == 0L) return
-        val gap = System.currentTimeMillis() - lastMinute
-        val visited = lastMinute - started
+        if (started <= 0L || lastSeen <= 0L) return
+        val visited = lastSeen - started
+        val gap = System.currentTimeMillis() - lastSeen
         Log.d("BlockerSvc", "settle interrupted spend pkg=$pkg visited=${visited}ms gap=${gap}ms")
         if (gap <= INTERRUPTED_SPEND_MS && visited >= 10_000) {
             prefs.tickDownRemaining(1)
@@ -161,6 +172,7 @@ class BlockerService : AccessibilityService() {
         private const val SPEND_PKG = "pkg"
         private const val SPEND_STARTED = "started"
         private const val SPEND_LAST_MINUTE = "lastMinute"
+        private const val SPEND_LAST_SEEN = "lastSeen"
 
         /** Minutes granted when the user spends one emergency token. */
         const val EMERGENCY_MINUTES_PER_TOKEN = 10
@@ -299,9 +311,12 @@ class BlockerService : AccessibilityService() {
                 delay(15_000)
                 if (!isScreenOn()) continue
                 val elapsed = System.currentTimeMillis()
+                // A heartbeat, so an interrupted visit can be measured even before
+                // the first full minute has been charged.
+                persistSpendSession(activeApp, spendSessionStartMs, lastMinuteSpendMs, elapsed)
                 if (elapsed - lastMinuteSpendMs < 60_000) continue
                 lastMinuteSpendMs = elapsed
-                persistSpendSession(activeApp, spendSessionStartMs, elapsed)
+                persistSpendSession(activeApp, spendSessionStartMs, elapsed, elapsed)
                 val newRemaining = prefs.tickDownRemaining(1)
                 updateFloatingTimerText(newRemaining)
                 if (newRemaining == 1) {

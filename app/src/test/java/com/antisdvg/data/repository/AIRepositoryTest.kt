@@ -109,8 +109,11 @@ class AIRepositoryTest {
 
         assertEquals(2, quiz.size)
         assertEquals("Хороший?", quiz[0].question)
-        assertEquals(2, quiz[0].correctIndex)
+        // The order is mixed before a question is shown, so the answer is checked
+        // by what it says rather than by the slot it sits in.
+        assertEquals("в", quiz[0].options[quiz[0].correctIndex])
         assertEquals("Три варианта — тоже вопрос?", quiz[1].question)
+        assertEquals("б", quiz[1].options[quiz[1].correctIndex])
     }
 
     @Test

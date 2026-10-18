@@ -215,7 +215,8 @@ class AIRepository {
                 if (qText.isNotBlank() && options.size >= MIN_QUIZ_OPTIONS &&
                     correctIndex in options.indices
                 ) {
-                    list.add(com.antisdvg.data.model.QuizQuestion(qText, options, correctIndex))
+                    val (mixed, index) = mixOptions(options, correctIndex)
+                    list.add(com.antisdvg.data.model.QuizQuestion(qText, mixed, index))
                 }
             }
         } catch (e: Exception) {
@@ -370,4 +371,22 @@ class AIRepository {
         val regex = Regex("\"((?:[^\"\\\\]|\\\\.)*)\"")
         return regex.findAll(arrRaw).map { it.groupValues[1] }.toList()
     }
+}
+
+/**
+ * Puts the answers in a random order.
+ *
+ * The model puts the right answer first almost every time — on a real session,
+ * all three questions came back with the correct option in slot one. A test whose
+ * answer is always the first option is not a test, it is a formality.
+ */
+internal fun mixOptions(
+    options: List<String>,
+    correctIndex: Int,
+    rnd: kotlin.random.Random = kotlin.random.Random
+): Pair<List<String>, Int> {
+    if (correctIndex !in options.indices) return options to correctIndex
+    val right = options[correctIndex]
+    val mixed = options.shuffled(rnd)
+    return mixed to mixed.indexOf(right)
 }
