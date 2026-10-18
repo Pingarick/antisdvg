@@ -746,8 +746,15 @@ class ReaderActivity : AppCompatActivity() {
               // forth must never count one screen twice.
               var visited = {}, pMin = INITIAL, pMax = INITIAL;
 
+              // Nothing has been read yet: the reader is still being placed where
+              // the book was left. Counted from the very first layout, the opening
+              // page seeds the span, the restore jumps to page 687, the next reflow
+              // keeps everything in between — and a session that put three screens
+              // in front of the reader reports "стр. 1–687 (687 стр.)".
+              var ready = false;
+
               function markVisited() {
-                if (!paged) { return; }
+                if (!paged || !ready) { return; }
                 visited[cur] = true;
                 var r = ratio();
                 if (r < pMin) { pMin = r; }
@@ -759,6 +766,7 @@ class ReaderActivity : AppCompatActivity() {
               // so far; every page inside it counts as read on the new layout.
               function resyncVisited() {
                 visited = {};
+                if (!ready) { return; }
                 var a = pageFor(pMin), b = pageFor(pMax);
                 for (var i = a; i <= b; i++) { visited[i] = true; }
                 markVisited();
@@ -874,6 +882,7 @@ class ReaderActivity : AppCompatActivity() {
               }
 
               function step(dir) {
+                ready = true;
                 if (paged) { go(cur + dir); } else { window.scrollBy(0, dir * window.innerHeight * 0.9); }
               }
 
@@ -947,6 +956,9 @@ class ReaderActivity : AppCompatActivity() {
 
               function goToRatio(r) {
                 var value = clamp(r, 0, 1);
+                // This is how the book is put back where it was left, so from here
+                // on pages really are in front of the reader.
+                ready = true;
                 if (paged) {
                   goToPage(pageFor(value) + 1);
                 } else {
@@ -966,6 +978,9 @@ class ReaderActivity : AppCompatActivity() {
               // book was opened", which is only right on the very first layout.
               function reflow(keepRatio) {
                 if (!paged) { return; }
+                // A reflow that keeps the position means the reader is where the
+                // book was left, so its pages count from now on.
+                if (keepRatio) { ready = true; }
                 var r = keepRatio ? ratio() : INITIAL;
                 relax();
                 cur = pageFor(r);

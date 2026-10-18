@@ -169,6 +169,9 @@ class BlockerService : AccessibilityService() {
         /** How long a restart may take before an interrupted visit is forgotten. */
         private const val INTERRUPTED_SPEND_MS = 2 * 60 * 1000L
 
+        /** How long our own overlay coming down is ignored as a window change. */
+        private const val REEXPOSE_IGNORE_MS = 2_500L
+
         private const val SPEND_PKG = "pkg"
         private const val SPEND_STARTED = "started"
         private const val SPEND_LAST_MINUTE = "lastMinute"
@@ -210,6 +213,16 @@ class BlockerService : AccessibilityService() {
         cancelBlockerWarning()
         settleInterruptedSpend()
 
+        // A dying instance can report "switched off" a moment *after* this one has
+        // come up — an update or a settings toggle tears the old service down while
+        // the new one binds — which left the warning stuck on a perfectly healthy
+        // phone. Cancelling once more when the dust settles gives the fresh state
+        // the last word.
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(
+            { runCatching { BlockerWarning.cancel(this) } },
+            1_500L
+        )
+
         registerReceiver(
             refreshReceiver,
             IntentFilter(ACTION_REFRESH_BLOCKED),
@@ -249,6 +262,10 @@ class BlockerService : AccessibilityService() {
                 }
 
                 // A blocked app is now in the foreground.
+                if (System.currentTimeMillis() < reexposeGuardUntil) {
+                    Log.d("BlockerSvc", "our own overlay just came down, ignoring pkg=$pkg")
+                    return
+                }
                 startAccessApplication(pkg)
             }
 
@@ -258,11 +275,22 @@ class BlockerService : AccessibilityService() {
                 if (!blockerEnabled) return
                 if (pkg == packageName) return
                 if (pkg in blockedPackages) {
+                    if (System.currentTimeMillis() < reexposeGuardUntil) return
                     startAccessApplication(pkg)
                 }
             }
         }
     }
+
+    /**
+     * Taking our own overlay down puts the blocked app back on top, and Android
+     * reports that as the user entering it — so pressing «Позже» used to bring the
+     * block straight back, over the home screen the person had just been sent to.
+     * The window we re-exposed ourselves is ignored for a moment; a real entry
+     * after that is judged as usual.
+     */
+    @Volatile
+    private var reexposeGuardUntil = 0L
 
     /**
      * The user is inside a blocked app. If earned time is left they get it (and
@@ -399,12 +427,16 @@ class BlockerService : AccessibilityService() {
      * for days while the app still claimed everything was fine.
      */
     override fun onUnbind(intent: android.content.Intent?): Boolean {
-        Log.d("BlockerSvc", "onUnbind: the blocker is being switched off")
-        runCatching { showBlockerWarning() }
+        // Deliberately silent. The service going away does not mean blocking is off:
+        // an update or a settings toggle unbinds this instance and binds a new one a
+        // moment later, and a warning posted on the way out outlives the state it
+        // described — which is how a healthy phone ended up showing "блокировка
+        // выключена" forever. The warning is posted only by code that can look at
+        // the state afterwards: the home screen and the daily watchdog. The service
+        // clears it the moment it is really connected again.
+        Log.d("BlockerSvc", "onUnbind: this instance is going away, not judging the fence here")
         return super.onUnbind(intent)
     }
-
-    private fun showBlockerWarning() = BlockerWarning.show(this)
 
     private fun cancelBlockerWarning() = BlockerWarning.cancel(this)
 
@@ -512,6 +544,10 @@ class BlockerService : AccessibilityService() {
         // spending a token. The blocker stays armed for the next launch.
         view.findViewById<Button>(R.id.block_exit).setOnClickListener {
             Log.d("BlockerSvc", "overlay: exit tapped")
+            // Our own overlay coming down re-exposes the app behind it, and Android
+            // reports that as the user entering it. Set first, so the block cannot
+            // come straight back over the home screen we are about to show.
+            reexposeGuardUntil = System.currentTimeMillis() + REEXPOSE_IGNORE_MS
             val home = Intent(Intent.ACTION_MAIN).apply {
                 addCategory(Intent.CATEGORY_HOME)
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
