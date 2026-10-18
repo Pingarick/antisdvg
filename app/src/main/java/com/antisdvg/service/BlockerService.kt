@@ -253,12 +253,18 @@ class BlockerService : AccessibilityService() {
     }
 
     /**
-     * The user is inside a blocked app. Grant them earned time if they have any,
-     * otherwise give a short grace window before blocking.
+     * The user is inside a blocked app. If earned time is left they get it (and
+     * it is counted), otherwise the block goes up immediately.
      */
     private fun startAccessApplication(pkg: String) {
         if (activeApp == pkg) {
-            return
+            // Still inside the same blocked app. Normally the overlay is up or the
+            // spend timer is running. If neither is true the fence has a hole —
+            // an exit that did not stick, or a window that took the overlay down —
+            // and guessing is not good enough for an app whose whole promise is
+            // that these apps stay closed. Put the block back.
+            if (blockView != null || spendJob != null) return
+            Log.d("BlockerSvc", "startAccessApplication: same app, no block up — re-arming")
         }
         Log.d("BlockerSvc", "startAccessApplication pkg=$pkg remaining=${prefs.readRemainingMinutes()}")
         stopAccessSpendTimer(null)
@@ -497,6 +503,10 @@ class BlockerService : AccessibilityService() {
             }
             startActivity(home)
             removeBlockView()
+            // Walking out by hand must not leave the door open: coming back has to
+            // be blocked again, and that hinges on forgetting which app we were in.
+            // The emergency token stays the one clear way to buy time.
+            activeApp = null
         }
 
         val params = WindowManager.LayoutParams(
