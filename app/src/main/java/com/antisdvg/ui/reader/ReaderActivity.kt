@@ -84,6 +84,21 @@ class ReaderActivity : AppCompatActivity() {
     private var lastActivityMs = 0L
 
     private var htmlInjected = false
+
+    /**
+     * False until the layout reports a page. A big book is cut into pages for
+     * seconds after the HTML has arrived, and a blank screen for that long reads
+     * as "broken" — so the opening line stays up until the layout speaks, not
+     * until the document has merely loaded.
+     */
+    private var pagesReady = false
+
+    /** First word from the layout: the book is readable, take the opening line down. */
+    private fun markPagesReady() {
+        if (pagesReady) return
+        pagesReady = true
+        runOnUiThread { render(viewModel.state.value) }
+    }
     private var lastTheme: ReaderTheme? = null
     private var lastFont: ReaderFont? = null
     private var lastFontPercent = 0
@@ -411,11 +426,10 @@ class ReaderActivity : AppCompatActivity() {
 
     private fun render(state: ReaderUiState) {
         state.book?.let { binding.readerTitle.text = it.title }
-        binding.readerStatus.visibility = if (state.loading || state.error != null) {
-            View.VISIBLE
-        } else {
-            View.GONE
-        }
+        // While a big book is being cut into pages the reader is blank; saying so
+        // is the difference between "slow" and "broken".
+        val showStatus = state.loading || state.error != null || !pagesReady
+        binding.readerStatus.visibility = if (showStatus) View.VISIBLE else View.GONE
         binding.readerStatus.text = state.error ?: getString(R.string.reader_opening)
         binding.readerFinish.isEnabled = state.error == null && !state.loading
 
@@ -1103,16 +1117,19 @@ class ReaderActivity : AppCompatActivity() {
     private inner class Bridge {
         @JavascriptInterface
         fun onProgress(ratio: Double) {
+            markPagesReady()
             runOnUiThread { viewModel.noteProgress(ratio) }
         }
 
         @JavascriptInterface
         fun onPage(page: Int, pages: Int) {
+            markPagesReady()
             runOnUiThread { viewModel.notePage(page, pages) }
         }
 
         @JavascriptInterface
         fun onChapter(name: String) {
+            markPagesReady()
             runOnUiThread { viewModel.noteChapter(name) }
         }
 
