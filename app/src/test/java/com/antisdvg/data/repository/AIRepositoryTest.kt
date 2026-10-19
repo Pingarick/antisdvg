@@ -126,6 +126,29 @@ class AIRepositoryTest {
     }
 
     @Test
+    fun `the strictness reaches the prompt and the levels differ`() {
+        val lenient = repo.buildQuizFromTextPrompt("Текст отрывка.", 2, 0)
+        val normal = repo.buildQuizFromTextPrompt("Текст отрывка.", 2, 1)
+        val strict = repo.buildQuizFromTextPrompt("Текст отрывка.", 2, 2)
+
+        assertTrue(lenient.contains("мягко") && !lenient.contains("строго"))
+        assertTrue(normal.contains("обычно"))
+        assertTrue(strict.contains("строго") && !strict.contains("мягко"))
+    }
+
+    @Test
+    fun `a long passage keeps its beginning and its end`() {
+        val text = "НАЧАЛО " + "слово ".repeat(3_000) + "КОНЕЦ"
+
+        val prompt = repo.buildQuizFromTextPrompt(text, 3)
+
+        assertTrue(prompt.contains("НАЧАЛО"))
+        assertTrue(prompt.contains("КОНЕЦ"))
+        // The prompt stays within the model budget instead of the book's length.
+        assertTrue(prompt.length < 13_000)
+    }
+
+    @Test
     fun `passage quiz prompt counts questions in Russian`() {
         assertTrue(repo.buildQuizFromTextPrompt("текст", 1).contains("ровно 1 вопрос "))
         assertTrue(repo.buildQuizFromTextPrompt("текст", 2).contains("ровно 2 вопроса"))
