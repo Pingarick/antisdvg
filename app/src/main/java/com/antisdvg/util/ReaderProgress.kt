@@ -43,9 +43,18 @@ object ReaderProgress {
      * Right answers a test of [total] questions needs: two thirds, but a test of
      * one or two questions lets a single slip through.
      */
-    fun passThreshold(total: Int): Int = when {
+    /**
+     * Right answers a test of [total] questions needs.
+     *
+     * [strictness] is the setting's level — 0 = мягко, 1 = обычно, 2 = строго:
+     * half, two thirds, or three quarters. A test of one or two questions lets a
+     * single slip through at any level.
+     */
+    fun passThreshold(total: Int, strictness: Int = 1): Int = when {
         total <= 0 -> 0
         total <= 2 -> 1
+        strictness <= 0 -> (total + 1) / 2
+        strictness >= 2 -> (total * 3 + 3) / 4
         else -> (total * 2 + 2) / 3
     }
 

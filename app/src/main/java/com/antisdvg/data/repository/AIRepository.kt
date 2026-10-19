@@ -149,9 +149,10 @@ class AIRepository {
     suspend fun generateQuizFromText(
         text: String,
         count: Int,
+        strictness: Int = STRICTNESS_NORMAL,
         apiKey: String = BuildConfig.DEEPSEEK_API_KEY
     ): List<com.antisdvg.data.model.QuizQuestion> {
-        val prompt = buildQuizFromTextPrompt(text, count)
+        val prompt = buildQuizFromTextPrompt(text, count, strictness)
 
         val response = try {
             DeepSeekClient.api.chat(
@@ -172,20 +173,49 @@ class AIRepository {
         return parseQuizJson(cleanJson(raw)).take(count)
     }
 
-    /** The whole prompt for a passage quiz, kept separate so it can be asserted on. */
-    internal fun buildQuizFromTextPrompt(text: String, count: Int): String = buildString {
+    /**
+     * The whole prompt for a passage quiz, kept separate so it can be asserted on.
+     *
+     * @param strictness 0 = мягко, 1 = обычно, 2 = строго — the same setting the
+     *   reader sees, so the test the model writes matches what was asked for.
+     */
+    internal fun buildQuizFromTextPrompt(
+        text: String,
+        count: Int,
+        strictness: Int = STRICTNESS_NORMAL
+    ): String = buildString {
         appendLine("Ты — преподаватель. Ниже отрывок, который человек только что прочитал.")
         appendLine("Составь ровно $count ${questionsWord(count)} с 4 вариантами ответа на понимание отрывка.")
         appendLine("Требования:")
         appendLine("- правильный ответ должен однозначно следовать из отрывка;")
         appendLine("- неверные варианты правдоподобны, но тексту противоречат;")
-        appendLine("- спрашивай про суть: события, поступки, мысли, связи между ними, а не про мелкие детали;")
-        appendLine("- не спрашивай про то, чего в отрывке нет.")
+        appendLine("- не спрашивай про то, чего в отрывке нет;")
+        appendLine("- чередуй типы: факт, причина, поступок или деталь, которая что-то говорит о человеке.")
+        when (strictness.coerceIn(STRICTNESS_LENIENT, STRICTNESS_STRICT)) {
+            STRICTNESS_LENIENT ->
+                appendLine("- уровень: мягко. Спрашивай о главном: чтобы отвечал тот, кто прочитал, а не тот, кто угадывает.")
+            STRICTNESS_STRICT ->
+                appendLine("- уровень: строго. Спрашивай о деталях и связях, видных только при внимательном чтении; вопрос не должен решаться по общим словам.")
+            else ->
+                appendLine("- уровень: обычно. Спрашивай про суть: события, поступки, мысли, связи между ними.")
+        }
         appendLine("Пиши по-русски, коротко. Ответь ТОЛЬКО валидным JSON-массивом (без markdown):")
         appendLine("""[{"question":"Текст вопроса?","options":["1","2","3","4"],"correctIndex":0}]""")
         appendLine()
         appendLine("ОТРЫВОК:")
-        append(text.take(MAX_PASSAGE_CHARS))
+        append(passageForPrompt(text))
+    }
+
+    /**
+     * A long session can be many pages and the model's window is not free. Take the
+     * beginning and the end rather than only the beginning, so the questions can be
+     * about where the reading finished too.
+     */
+    private fun passageForPrompt(text: String): String {
+        if (text.length <= MAX_PASSAGE_CHARS) return text
+        val head = MAX_PASSAGE_CHARS * 2 / 3
+        val tail = MAX_PASSAGE_CHARS - head
+        return text.take(head) + "\n…\n" + text.takeLast(tail)
     }
 
     private fun questionsWord(count: Int): String = when {

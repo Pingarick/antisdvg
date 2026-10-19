@@ -40,18 +40,20 @@ object BookStatus {
 }
 
 /**
- * Whether the book is paper or electronic. Electronic reading earns fewer
- * minutes per page because it's easier to fake / less deliberate.
+ * Whether the book is paper or electronic.
+ *
+ * Both pay the same now: what makes a session count is the test at the end, not
+ * the format. Electronic reading used to pay 0.6× because it is "easier to fake",
+ * but a phone screen is where reading actually happens — the penalty only made
+ * the reader poorer for reading the way they already read.
  */
 object BookFormat {
     const val PAPER = "PAPER"
     const val ELECTRONIC = "ELECTRONIC"
 
-    /** Multipliers applied to earned minutes per page. */
-    fun factor(format: String): Double = when (format) {
-        ELECTRONIC -> 0.6
-        else -> 1.0
-    }
+    /** Multipliers applied to earned minutes. */
+    @Suppress("UNUSED_PARAMETER")
+    fun factor(format: String): Double = 1.0
 }
 
 /** Progress percentage 0..100, clamped. */

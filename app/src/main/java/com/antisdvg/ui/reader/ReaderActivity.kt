@@ -744,7 +744,7 @@ class ReaderActivity : AppCompatActivity() {
               // The honest record of the session: which screens were really put
               // in front of the reader. A set, not a counter — flipping back and
               // forth must never count one screen twice.
-              var visited = {}, pMin = INITIAL, pMax = INITIAL;
+              var visited = {}, visitedRatio = {}, pMin = INITIAL, pMax = INITIAL;
 
               // Nothing has been read yet: the reader is still being placed where
               // the book was left. Counted from the very first layout, the opening
@@ -755,20 +755,26 @@ class ReaderActivity : AppCompatActivity() {
 
               function markVisited() {
                 if (!paged || !ready) { return; }
-                visited[cur] = true;
                 var r = ratio();
+                visited[cur] = true;
+                visitedRatio[cur] = r;
                 if (r < pMin) { pMin = r; }
                 if (r > pMax) { pMax = r; }
               }
 
               // Changing font, size or mode re-lays the text out, so the old page
-              // numbers mean nothing. What survives is the span of progress seen
-              // so far; every page inside it counts as read on the new layout.
+              // numbers mean nothing — but where each page sat in the book does.
+              // Each visited page is carried over by position: a jump to a far
+              // chapter must not drag every page in between into the session.
               function resyncVisited() {
+                var old = visitedRatio;
                 visited = {};
+                visitedRatio = {};
                 if (!ready) { return; }
-                var a = pageFor(pMin), b = pageFor(pMax);
-                for (var i = a; i <= b; i++) { visited[i] = true; }
+                for (var k in old) {
+                  visited[pageFor(old[k])] = true;
+                  visitedRatio[pageFor(old[k])] = old[k];
+                }
                 markVisited();
               }
 
@@ -1276,6 +1282,10 @@ class ReaderActivity : AppCompatActivity() {
             }
         }
         row(R.string.reader_clean_screen) { toggleBars() }
+        row(R.string.reader_restart) {
+            menu?.dismiss()
+            confirmRestart()
+        }
         if (brightness() > 0f) {
             rows.addView(menuRow(getString(R.string.reader_brightness_reset)) {
                 menu?.dismiss()
@@ -1288,6 +1298,23 @@ class ReaderActivity : AppCompatActivity() {
             setTitle(R.string.reader_menu)
             setView(rows)
             setPositiveButton(android.R.string.ok, null)
+        }
+    }
+
+    /**
+     * Puts the book back to page one. Deliberate and confirmed; what has already
+     * been read stays in the statistics — only the position moves.
+     */
+    private fun confirmRestart() {
+        screenDialog {
+            setTitle(R.string.reader_restart)
+            setMessage(R.string.reader_restart_ask)
+            setPositiveButton(R.string.reader_restart) { _, _ ->
+                viewModel.restartFromBeginning()
+                toast(getString(R.string.reader_restart_done))
+                recreate()
+            }
+            setNegativeButton(android.R.string.cancel, null)
         }
     }
 
@@ -1677,7 +1704,8 @@ class ReaderActivity : AppCompatActivity() {
                     ai.generateQuizFromText(
                         viewModel.passageText(),
                         viewModel.plannedQuestions(),
-                        viewModel.apiKey()
+                        strictness = viewModel.strictness(),
+                        apiKey = viewModel.apiKey()
                     )
                 }
             }.getOrNull().orEmpty()

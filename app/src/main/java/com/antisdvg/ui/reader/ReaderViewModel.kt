@@ -193,6 +193,17 @@ class ReaderViewModel(
         frozen = null
     }
 
+    /**
+     * Puts the reading position back to the start of the book. The session clock
+     * keeps running: this moves the place, not the time already spent.
+     */
+    fun restartFromBeginning() {
+        val book = _state.value.book ?: return
+        sessionStartProgress = 0.0
+        _state.update { it.copy(progress = 0.0, position = 0.0, page = 0) }
+        viewModelScope.launch { repo.saveReaderProgress(book.id, 0.0, 0) }
+    }
+
     fun noteProgress(progress: Double) {
         val value = progress.coerceIn(0.0, 1.0)
         val state = _state.value
@@ -365,6 +376,10 @@ class ReaderViewModel(
     /** The DeepSeek key: whatever settings hold, or the built-in one if untouched. */
     suspend fun apiKey(): String = repo.getSettings().apiKey
 
+    /** The strictness the reader asked for, so the model's test respects it too. */
+    suspend fun strictness(): Int =
+        runCatching { repo.getSettings().verificationStrictness }.getOrDefault(1)
+
     /** The offline test, built from the very same passage. */
     fun buildQuiz(): List<QuizQuestion> {
         questions = ClozeQuiz.generate(
@@ -457,7 +472,8 @@ class ReaderViewModel(
             .filter { i -> answers.getOrNull(i) != questions[i].correctIndex }
             .map { i -> (i + 1) to questions[i].options[questions[i].correctIndex] }
         val correct = questions.size - missed.size
-        val required = ReaderProgress.passThreshold(questions.size)
+        val level = runCatching { repo.getSettings().verificationStrictness }.getOrDefault(1)
+        val required = ReaderProgress.passThreshold(questions.size, level)
         val passed = questions.isNotEmpty() && correct >= required
         if (!passed) return QuizOutcome(correct, questions.size, false, 0, missed)
 

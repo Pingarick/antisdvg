@@ -48,8 +48,12 @@ class ReaderProgressTest {
     }
 
     @Test
-    fun earnedMinutes_appliesElectronicFactorButNeverBelowOne() {
-        assertEquals(6, ReaderProgress.earnedMinutes(10, BookFormat.ELECTRONIC))
+    fun earnedMinutes_doesNotPunishElectronicReading() {
+        // Both formats pay the same now: the test at the end is what makes a
+        // session count, not the screen it was read on. Three minutes of reading
+        // is three minutes of rest — the reader's ask, and the honest rate.
+        assertEquals(10, ReaderProgress.earnedMinutes(10, BookFormat.ELECTRONIC))
+        assertEquals(3, ReaderProgress.earnedMinutes(3, BookFormat.ELECTRONIC))
         assertEquals(1, ReaderProgress.earnedMinutes(1, BookFormat.ELECTRONIC))
     }
 
@@ -79,5 +83,16 @@ class ReaderProgressTest {
         assertEquals(2, ReaderProgress.passThreshold(3))
         assertEquals(3, ReaderProgress.passThreshold(4))
         assertEquals(4, ReaderProgress.passThreshold(5))
+    }
+
+    @Test
+    fun passThreshold_followsTheStrictnessSetting() {
+        // 0 = мягко: половина, 1 = обычно: две трети, 2 = строго: три четверти.
+        assertEquals(2, ReaderProgress.passThreshold(3, 0))
+        assertEquals(2, ReaderProgress.passThreshold(3, 1))
+        assertEquals(3, ReaderProgress.passThreshold(3, 2))
+        assertEquals(3, ReaderProgress.passThreshold(5, 0))
+        assertEquals(4, ReaderProgress.passThreshold(5, 1))
+        assertEquals(4, ReaderProgress.passThreshold(5, 2))
     }
 }

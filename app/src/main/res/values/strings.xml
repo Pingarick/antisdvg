@@ -333,6 +333,9 @@
 
     <!-- Reader navigation -->
     <string name="reader_menu">Меню читалки</string>
+    <string name="reader_restart">Начать сначала</string>
+    <string name="reader_restart_ask">Книга откроется с первой страницы. Позиция сбросится, а то, что уже прочитано, останется в статистике.</string>
+    <string name="reader_restart_done">Открыто с первой страницы</string>
     <string name="reader_contents">Содержание</string>
     <string name="reader_contents_empty">В этой книге не нашлось ни одной главы.</string>
     <string name="reader_jump">Перейти к странице</string>
