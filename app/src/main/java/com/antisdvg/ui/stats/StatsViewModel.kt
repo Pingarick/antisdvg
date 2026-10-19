@@ -229,7 +229,11 @@ private val DAY_NUMBER_LABELER: Labeler = { millis ->
     DATE_FMT.format(millis)
 }
 
-/** All-time chart: label bars with the start month (янв., фев., …). */
+/**
+ * All-time chart: the buckets are weeks to months long, so the month alone says
+ * nothing — a whole history inside one month drew seven times "окт.". The start
+ * day inside the month is the anchor that actually differs.
+ */
 private val MONTH_LABELER: Labeler = { millis ->
-    MONTH_FMT.format(millis)
+    DATE_FMT.format(millis)
 }

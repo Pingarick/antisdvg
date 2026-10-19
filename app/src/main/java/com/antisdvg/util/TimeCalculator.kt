@@ -34,6 +34,15 @@ object TimeCalculator {
         return minutes
     }
 
+    /**
+     * How a run of reading days scales a session: +5% per day, capped at double.
+     * The streak is shown on the home screen, so it has to mean something here.
+     */
+    fun applyStreak(minutes: Int, streak: Int): Int {
+        if (minutes <= 0 || streak <= 0) return minutes
+        return (minutes * (1.0 + 0.05 * minOf(streak, 20))).toInt()
+    }
+
     // ---- Streak calculation ----
     const val DAY_MILLIS = 24L * 60 * 60 * 1000
     private const val DAY_MS = DAY_MILLIS

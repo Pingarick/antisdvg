@@ -149,6 +149,20 @@ class AIRepositoryTest {
     }
 
     @Test
+    fun `a question whose quote is not in the passage is dropped`() {
+        val passage = "Майкл остановился у причала и закурил сигарету."
+        val json = """[
+            {"question":"Что сделал Майкл у причала?","options":["закурил","уснул","закричал","уехал"],"correctIndex":0,"quote":"Майкл остановился у причала и закурил сигарету"},
+            {"question":"Куда Майкл поехал потом?","options":["в Рим","в Палермо","в США","в Милан"],"correctIndex":0,"quote":"затем он уехал в Рим на ночном поезде"}
+        ]"""
+
+        val quiz = repo.parseQuizJson(json, passage)
+
+        assertEquals(1, quiz.size)
+        assertEquals("Что сделал Майкл у причала?", quiz[0].question)
+    }
+
+    @Test
     fun `passage quiz prompt counts questions in Russian`() {
         assertTrue(repo.buildQuizFromTextPrompt("текст", 1).contains("ровно 1 вопрос "))
         assertTrue(repo.buildQuizFromTextPrompt("текст", 2).contains("ровно 2 вопроса"))

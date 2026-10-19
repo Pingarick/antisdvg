@@ -339,20 +339,33 @@ class ReaderViewModel(
     }
 
     /** The reader's own "minutes per page", loaded once; the time part is 1:1. */
-    private var minutesPerPage: Int = 3
+    private var currentStreak: Int = 0
+
+    /**
+     * An electronic page pays two minutes; paper pays three. The shared setting is
+     * the paper flow's knob — the timed reader has its own rate, so tuning one does
+     * not silently re-price the other.
+     */
+    private val readerMinutesPerPage = 2
 
     init {
         viewModelScope.launch {
-            minutesPerPage = runCatching { repo.getSettings().minutesPerPage }.getOrDefault(3)
+            currentStreak = runCatching { repo.getStats().currentStreak }.getOrDefault(0)
         }
     }
 
-    /** Minutes this session is worth: the pages that were on screen plus the time. */
-    private fun earnedMinutes(summary: SessionSummary): Int =
-        ReaderProgress.earnedMinutes(summary.pagesRead, summary.minutesRead, minutesPerPage)
+    /** Minutes this session is worth: pages on screen, the time, and the streak. */
+    private fun earnedMinutes(summary: SessionSummary): Int {
+        val base = ReaderProgress.earnedMinutes(
+            summary.pagesRead,
+            summary.minutesRead,
+            readerMinutesPerPage
+        )
+        return com.antisdvg.util.TimeCalculator.applyStreak(base, currentStreak)
+    }
 
-    /** The per-page reward the reader set, for callers outside the session. */
-    fun perPage(): Int = minutesPerPage
+    /** The per-page reward the reader pays, for callers outside the session. */
+    fun perPage(): Int = readerMinutesPerPage
 
     /**
      * Builds the session's light test.
@@ -504,6 +517,8 @@ class ReaderViewModel(
     }
 
     private suspend fun awardSession(book: Book, summary: SessionSummary): Int {
+        // The streak may have moved since the reader opened; pay on today's.
+        currentStreak = runCatching { repo.getStats().currentStreak }.getOrDefault(currentStreak)
         val earned = earnedMinutes(summary)
         val state = _state.value
         // Count in the pages the reader saw, and correct the book's page count

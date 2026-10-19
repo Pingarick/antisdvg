@@ -10,9 +10,9 @@ import androidx.room.PrimaryKey
 data class AppSettings(
     @PrimaryKey val id: Int = SETTINGS_ROW,
     var apiKey: String = "",
-    // Minutes of access awarded per page read. A page is roughly two minutes of
-    // reading, so three keeps paper a little ahead of the timed reader (0.6x)
-    // without paying five minutes for two minutes of work.
+    // Minutes of access awarded per page read in the paper flow. A page is roughly
+    // two minutes of reading, so three keeps paper a little ahead; the timed reader
+    // has its own rate and does not read this value.
     var minutesPerPage: Int = 3,
     // Minutes of grace a single emergency token grants.
     var emergencyMinutes: Int = 10,

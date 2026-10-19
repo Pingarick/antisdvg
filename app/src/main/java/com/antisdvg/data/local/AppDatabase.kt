@@ -152,5 +152,21 @@ abstract class AppDatabase : RoomDatabase() {
                 )
             }
         }
+
+        /**
+         * The old default awarded three minutes a page, which on top of the time
+         * paid fourfold. A page is worth one minute now, so anyone still sitting on
+         * that default is moved to it; a value changed on purpose is left alone.
+         */
+        /**
+         * The old default awarded three minutes a page, which on top of the time
+         * paid fourfold. A page is worth one minute now, so anyone still sitting on
+         * that default is moved to it; a value changed on purpose is left alone.
+         */
+        private val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("UPDATE app_settings SET minutesPerPage = 1 WHERE minutesPerPage = 3")
+            }
+        }
     }
 }

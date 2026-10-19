@@ -170,7 +170,7 @@ class AIRepository {
 
         if (!response.isSuccessful) return emptyList()
         val raw = response.body()?.choices?.firstOrNull()?.message?.content ?: return emptyList()
-        return parseQuizJson(cleanJson(raw)).take(count)
+        return parseQuizJson(cleanJson(raw), text).take(count)
     }
 
     /**
@@ -191,6 +191,7 @@ class AIRepository {
         appendLine("- неверные варианты правдоподобны, но тексту противоречат;")
         appendLine("- не спрашивай про то, чего в отрывке нет;")
         appendLine("- чередуй типы: факт, причина, поступок или деталь, которая что-то говорит о человеке.")
+        appendLine("- для каждого вопроса положи в поле quote дословную фразу из отрывка, на которой он держится.")
         when (strictness.coerceIn(STRICTNESS_LENIENT, STRICTNESS_STRICT)) {
             STRICTNESS_LENIENT ->
                 appendLine("- уровень: мягко. Спрашивай о главном: чтобы отвечал тот, кто прочитал, а не тот, кто угадывает.")
@@ -200,7 +201,7 @@ class AIRepository {
                 appendLine("- уровень: обычно. Спрашивай про суть: события, поступки, мысли, связи между ними.")
         }
         appendLine("Пиши по-русски, коротко. Ответь ТОЛЬКО валидным JSON-массивом (без markdown):")
-        appendLine("""[{"question":"Текст вопроса?","options":["1","2","3","4"],"correctIndex":0}]""")
+        appendLine("""[{"question":"Текст вопроса?","options":["1","2","3","4"],"correctIndex":0,"quote":"фраза из отрывка"}]""")
         appendLine()
         appendLine("ОТРЫВОК:")
         append(passageForPrompt(text))
@@ -224,7 +225,10 @@ class AIRepository {
         else -> "вопросов"
     }
 
-    internal fun parseQuizJson(json: String): List<com.antisdvg.data.model.QuizQuestion> {
+    internal fun parseQuizJson(
+        json: String,
+        passage: String? = null
+    ): List<com.antisdvg.data.model.QuizQuestion> {
         val list = mutableListOf<com.antisdvg.data.model.QuizQuestion>()
         try {
             val array = org.json.JSONArray(json)
@@ -242,8 +246,10 @@ class AIRepository {
                 // A question the reader can grade: at least two answers, and a
                 // marked one among them. Anything else would be a question with
                 // no right answer, which is worse than one question fewer.
+                val quoted = obj.optString("quote", "")
                 if (qText.isNotBlank() && options.size >= MIN_QUIZ_OPTIONS &&
-                    correctIndex in options.indices
+                    correctIndex in options.indices &&
+                    (passage == null || quoteBacked(quoted, passage))
                 ) {
                     val (mixed, index) = mixOptions(options, correctIndex)
                     list.add(com.antisdvg.data.model.QuizQuestion(qText, mixed, index))
@@ -253,6 +259,24 @@ class AIRepository {
             // best-effort
         }
         return list
+    }
+
+    /**
+     * A question is only kept if it can point at the passage.
+     *
+     * The model is asked to quote the line each question rests on. A question whose
+     * quote is not in the text — invented, or about another part of the book — is
+     * dropped rather than asked, because a question about something the reader
+     * never saw tests nothing. Matching is by words: the model re-punctuates.
+     */
+    internal fun quoteBacked(quote: String, passage: String): Boolean {
+        val words = quote.lowercase()
+            .split(Regex("[^\\p{L}\\p{N}]+"))
+            .filter { it.length > 2 }
+        if (words.isEmpty()) return false
+        val haystack = passage.lowercase()
+        val hits = words.count { haystack.contains(it) }
+        return hits * 100 >= words.size * 70
     }
 
     internal fun buildSystemPrompt(
