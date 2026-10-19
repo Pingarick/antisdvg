@@ -58,12 +58,21 @@ object ReaderProgress {
         else -> (total * 2 + 2) / 3
     }
 
-    /** What a session pays: real reading minutes, scaled by the electronic-book
-     * factor. Zero below a full minute — there is nothing honest to pay yet.
+    /**
+     * What a session pays: a fixed reward for every page that was really on screen,
+     * plus one minute for every minute read.
+     *
+     * Pages are capped by the clock — at most two per minute — because fifty pages
+     * flipped through in ten seconds are not fifty pages read. Zero below a full
+     * minute: there is nothing honest to pay yet.
+     *
+     * @param minutesPerPage the reader's own setting, so the page reward is theirs
+     *   to tune; the time part is always one for one.
      */
-    fun earnedMinutes(minutesRead: Int, format: String): Int {
+    fun earnedMinutes(pagesRead: Int, minutesRead: Int, minutesPerPage: Int): Int {
         if (minutesRead <= 0) return 0
-        return maxOf(1, (minutesRead * BookFormat.factor(format)).toInt())
+        val paidPages = pagesRead.coerceIn(0, minutesRead * 2 + 1)
+        return maxOf(1, paidPages * minutesPerPage.coerceAtLeast(0) + minutesRead)
     }
 
     /** Seconds of a session that count as "a minute at least". */

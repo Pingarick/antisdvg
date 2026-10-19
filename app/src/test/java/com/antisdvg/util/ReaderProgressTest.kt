@@ -43,18 +43,26 @@ class ReaderProgressTest {
 
     @Test
     fun earnedMinutes_paysForRealTimeOnly() {
-        assertEquals(0, ReaderProgress.earnedMinutes(0, BookFormat.PAPER))
-        assertEquals(10, ReaderProgress.earnedMinutes(10, BookFormat.PAPER))
+        assertEquals(0, ReaderProgress.earnedMinutes(0, 0, 3))
+        // With no pages to pay for, the time part still stands on its own.
+        assertEquals(10, ReaderProgress.earnedMinutes(0, 10, 3))
     }
 
     @Test
-    fun earnedMinutes_doesNotPunishElectronicReading() {
-        // Both formats pay the same now: the test at the end is what makes a
-        // session count, not the screen it was read on. Three minutes of reading
-        // is three minutes of rest — the reader's ask, and the honest rate.
-        assertEquals(10, ReaderProgress.earnedMinutes(10, BookFormat.ELECTRONIC))
-        assertEquals(3, ReaderProgress.earnedMinutes(3, BookFormat.ELECTRONIC))
-        assertEquals(1, ReaderProgress.earnedMinutes(1, BookFormat.ELECTRONIC))
+    fun earnedMinutes_paysPagesAndTime() {
+        // 5 minutes read, 10 pages, 2 per page: 20 + 5 = 25.
+        assertEquals(25, ReaderProgress.earnedMinutes(10, 5, 2))
+        // 3 minutes, 3 pages, 3 per page: 9 + 3 = 12.
+        assertEquals(12, ReaderProgress.earnedMinutes(3, 3, 3))
+        assertEquals(4, ReaderProgress.earnedMinutes(1, 1, 3))
+    }
+
+    @Test
+    fun earnedMinutes_capsPagesByTheClock() {
+        // Fifty pages flipped in one minute are not fifty pages read: the cap is
+        // two pages per minute plus one, so the page part is 3 × 2.
+        assertEquals(7, ReaderProgress.earnedMinutes(50, 1, 2))
+        assertEquals(0, ReaderProgress.earnedMinutes(10, 0, 2))
     }
 
     @Test

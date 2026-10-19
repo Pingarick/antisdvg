@@ -50,10 +50,6 @@ object BookStatus {
 object BookFormat {
     const val PAPER = "PAPER"
     const val ELECTRONIC = "ELECTRONIC"
-
-    /** Multipliers applied to earned minutes. */
-    @Suppress("UNUSED_PARAMETER")
-    fun factor(format: String): Double = 1.0
 }
 
 /** Progress percentage 0..100, clamped. */

@@ -338,9 +338,21 @@ class ReaderViewModel(
         return SessionSummary(state.activeSeconds / 60, pages, from, to)
     }
 
-    /** Minutes this session is worth: real reading time, electronic factor applied. */
-    private fun earnedMinutes(summary: SessionSummary, format: String): Int =
-        ReaderProgress.earnedMinutes(summary.minutesRead, format)
+    /** The reader's own "minutes per page", loaded once; the time part is 1:1. */
+    private var minutesPerPage: Int = 3
+
+    init {
+        viewModelScope.launch {
+            minutesPerPage = runCatching { repo.getSettings().minutesPerPage }.getOrDefault(3)
+        }
+    }
+
+    /** Minutes this session is worth: the pages that were on screen plus the time. */
+    private fun earnedMinutes(summary: SessionSummary): Int =
+        ReaderProgress.earnedMinutes(summary.pagesRead, summary.minutesRead, minutesPerPage)
+
+    /** The per-page reward the reader set, for callers outside the session. */
+    fun perPage(): Int = minutesPerPage
 
     /**
      * Builds the session's light test.
@@ -395,9 +407,8 @@ class ReaderViewModel(
 
     /** What the session pays if the test is passed — shown before the test. */
     fun expectedMinutes(): Int {
-        val summary = summary()
-        val format = _state.value.book?.format ?: return 0
-        return earnedMinutes(summary, format)
+        if (_state.value.book == null) return 0
+        return earnedMinutes(summary())
     }
 
     /**
@@ -493,7 +504,7 @@ class ReaderViewModel(
     }
 
     private suspend fun awardSession(book: Book, summary: SessionSummary): Int {
-        val earned = earnedMinutes(summary, book.format)
+        val earned = earnedMinutes(summary)
         val state = _state.value
         // Count in the pages the reader saw, and correct the book's page count
         // in the same write, or "the end of the book" would be judged by the

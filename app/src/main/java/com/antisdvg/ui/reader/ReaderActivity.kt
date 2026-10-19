@@ -1786,7 +1786,7 @@ class ReaderActivity : AppCompatActivity() {
      */
     private fun maybeOfferPending() {
         val claim = pendingStore.forBook(intent.getLongExtra(EXTRA_BOOK_ID, -1L)) ?: return
-        val earned = ReaderProgress.earnedMinutes(claim.minutesRead, viewModel.state.value.book?.format ?: "")
+        val earned = ReaderProgress.earnedMinutes(claim.pages, claim.minutesRead, viewModel.perPage())
         val message = if (claim.fromPage == claim.toPage) {
             getString(R.string.reader_pending_one, claim.fromPage, claim.minutesRead, earned)
         } else {

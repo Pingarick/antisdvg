@@ -158,7 +158,7 @@ class ReadingViewModel(
                     useProgressiveBonus = true,
                     streak = repo.getStats().currentStreak
                 )
-                val earned = (base * BookFormat.factor(book.format)).toInt()
+                val earned = base
                 repo.recordSession(
                     book = book,
                     startPage = start,
@@ -188,7 +188,7 @@ class ReadingViewModel(
             useProgressiveBonus = true,
             streak = currentStreak
         )
-        val earned = (base * BookFormat.factor(book.format)).toInt()
+        val earned = base
         repo.recordSession(
             book = book,
             startPage = start,
