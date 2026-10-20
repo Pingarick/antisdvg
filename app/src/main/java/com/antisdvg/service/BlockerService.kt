@@ -25,6 +25,7 @@ import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.widget.Button
 import android.widget.TextView
+import androidx.core.view.isVisible
 import com.antisdvg.R
 import com.antisdvg.data.local.AppDatabase
 import com.antisdvg.data.model.BlockedApp
@@ -183,9 +184,8 @@ class BlockerService : AccessibilityService() {
         const val ACTION_REFRESH_BLOCKED = "com.antisdvg.REFRESH_BLOCKED"
         const val EXTRA_BLOCKED = "blocked_packages"
 
-        /** Sent by the focus screen: lock the blocked apps while a session runs. */
+        /** Sent by the focus screen: re-evaluate the focus wall right now. */
         const val ACTION_FOCUS = "com.antisdvg.FOCUS_MODE"
-        const val EXTRA_FOCUS_ON = "focus_on"
 
         /** Broadcast to nudge the service to reload blocked apps + settings. */
         fun broadcastRefresh(context: Context) {
@@ -199,15 +199,14 @@ class BlockerService : AccessibilityService() {
     @Volatile
     private var dailyLimitMin: Int = 0
 
-    /** A focus session locks the blocked apps outright, whatever the wallet says. */
-    @Volatile
-    private var focusMode = false
+    /** True while a focus block is running according to the persisted deadline. */
+    private fun focusActive(): Boolean =
+        prefs.readFocusUntilMs() > System.currentTimeMillis()
 
     private val refreshReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == ACTION_FOCUS) {
-                val on = intent.getBooleanExtra(EXTRA_FOCUS_ON, false)
-                focusMode = on
+                val on = focusActive()
                 Log.d("BlockerSvc", "focus mode = $on")
                 if (on) {
                     // The focus started while the user was already inside a blocked
@@ -342,7 +341,7 @@ class BlockerService : AccessibilityService() {
         if (capped) {
             Log.d("BlockerSvc", "daily limit reached spent=${prefs.currentSpentToday()} limit=$dailyLimitMin")
         }
-        if (focusMode) {
+        if (focusActive()) {
             // A focus session locks the blocked apps outright, whatever the wallet.
             showBlockView()
         } else if (remaining > 0 && !capped) {
@@ -516,10 +515,13 @@ class BlockerService : AccessibilityService() {
         // invisible/untouchable in the overlay window.
         val themed = androidx.appcompat.view.ContextThemeWrapper(this, R.style.Theme_AntiSvdg)
         val view = android.view.LayoutInflater.from(themed).inflate(R.layout.view_block_overlay, null)
+        val inFocus = focusActive()
         view.findViewById<TextView>(R.id.block_message).text =
-            getString(if (focusMode) R.string.blocked_focus_message else R.string.blocked_message)
+            getString(if (inFocus) R.string.blocked_focus_message else R.string.blocked_message)
         view.findViewById<TextView>(R.id.block_hint).text =
-            getString(if (focusMode) R.string.blocked_focus_hint else R.string.blocked_hint)
+            getString(if (inFocus) R.string.blocked_focus_hint else R.string.blocked_hint)
+        // During a focus block a token must not buy a way out; reading still can.
+        view.findViewById<Button>(R.id.block_spend_token).isVisible = !inFocus
         // The price of a token is a setting, so the button names the real number.
         view.findViewById<Button>(R.id.block_spend_token).text =
             getString(R.string.blocked_spend_token, emergencyMinutes)

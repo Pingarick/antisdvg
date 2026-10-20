@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.antisdvg.data.repository.DataRepository
 import com.antisdvg.service.BlockerService
+import com.antisdvg.util.PreferencesManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,6 +47,19 @@ class FocusViewModel(
     val state: StateFlow<FocusUiState> = _state.asStateFlow()
 
     private var ticker: Job? = null
+
+    init {
+        // The service keeps the wall up from the persisted deadline, so a process
+        // restart must resume the same block instead of orphaning it.
+        val until = PreferencesManager(app).readFocusUntilMs()
+        val left = ((until - System.currentTimeMillis()) / 1000L).toInt()
+        if (left in 1..FocusUiState.FOCUS_SECONDS) {
+            _state.update { it.copy(phase = FocusPhase.FOCUS, secondsLeft = left, running = true) }
+            runTicker()
+        } else if (until != 0L) {
+            PreferencesManager(app).writeFocusUntilMs(0L)
+        }
+    }
 
     fun start() {
         if (_state.value.running) return
@@ -88,10 +102,12 @@ class FocusViewModel(
      * app going to the background - which is the whole point of a focus session.
      */
     private fun setLock(on: Boolean) {
+        val prefs = PreferencesManager(app)
+        prefs.writeFocusUntilMs(
+            if (on) System.currentTimeMillis() + _state.value.secondsLeft * 1000L else 0L
+        )
         app.sendBroadcast(
-            Intent(BlockerService.ACTION_FOCUS)
-                .setPackage(app.packageName)
-                .putExtra(BlockerService.EXTRA_FOCUS_ON, on)
+            Intent(BlockerService.ACTION_FOCUS).setPackage(app.packageName)
         )
     }
 

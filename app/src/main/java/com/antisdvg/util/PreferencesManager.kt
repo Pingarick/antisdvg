@@ -23,6 +23,15 @@ class PreferencesManager(context: Context) {
 
     fun writeRemainingMinutes(value: Int) = prefs.edit().putInt(KEY_REMAINING, value).apply()
 
+    /**
+     * Epoch millis when the running focus block ends; 0 = no session.
+     * Lives in prefs, not in memory: the accessibility service restarts on its
+     * own and the wall must survive that.
+     */
+    fun readFocusUntilMs(): Long = prefs.getLong(KEY_FOCUS_UNTIL, 0L)
+
+    fun writeFocusUntilMs(value: Long) = prefs.edit().putLong(KEY_FOCUS_UNTIL, value).apply()
+
     fun readEmergencyTokens(): Int = prefs.getInt(KEY_TOKENS, 3)
     fun writeEmergencyTokens(value: Int) = prefs.edit().putInt(KEY_TOKENS, value).apply()
 
@@ -56,6 +65,7 @@ class PreferencesManager(context: Context) {
 
     companion object {
         private const val KEY_REMAINING = "minutes_remaining"
+        private const val KEY_FOCUS_UNTIL = "focus_until_ms"
         private const val KEY_TOKENS = "emergency_tokens"
         private const val KEY_SPENT_TODAY = "minutes_spent_today"
         private const val KEY_SPEND_DAY = "spend_day_start"
