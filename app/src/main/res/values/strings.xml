@@ -195,7 +195,7 @@
     <string name="stats_format_paper_label">Бумажные</string>
     <string name="stats_format_electronic_label">Электронные</string>
     <string name="stats_today_section">Сегодня</string>
-    <string name="stats_today_minutes_label">Минут прочитано</string>
+    <string name="stats_today_minutes_label">Минут заработано</string>
     <string name="stats_today_pages_label">Страниц прочитано</string>
     <string name="stats_week_section">Эта неделя</string>
     <string name="stats_week_label">Минут чтения за 7 дней</string>
@@ -269,7 +269,7 @@
     <string name="home_reading_subtitle">Твоя ежедневная практика</string>
     <string name="home_streak_label">серия чтения</string>
     <string name="home_today_section">Сегодня</string>
-    <string name="home_today_minutes">Минут чтения</string>
+    <string name="home_today_minutes">Минут заработано</string>
     <string name="home_today_pages">Страниц прочитано</string>
     <string name="home_wallet_hint">доступных минут отдыха</string>
     <string name="home_continue_section">Продолжить чтение</string>
