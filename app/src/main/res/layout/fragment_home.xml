@@ -294,6 +294,15 @@
                 android:textAllCaps="false" />
         </LinearLayout>
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/home_start_focus_btn"
+            style="@style/Widget.Book.Button.Tonal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_md"
+            android:text="@string/home_start_focus"
+            android:textAllCaps="false" />
+
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
@@ -476,13 +485,14 @@
 
         <!-- ===== Second way to earn: focus ===== -->
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/home_start_focus_btn"
+            android:id="@+id/home_start_focus_placeholder"
             style="@style/Widget.Book.Button.Tonal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/space_lg"
             android:text="@string/home_start_focus"
-            android:textAllCaps="false" />
+            android:textAllCaps="false"
+            android:visibility="gone" />
 
         <View
             android:layout_width="match_parent"
