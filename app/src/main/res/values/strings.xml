@@ -64,8 +64,8 @@
 
     <!-- Focus -->
     <string name="focus_title">Фокус-сессия</string>
-    <string name="focus_phase_idle">Готов к 25 минутам без отвлечений?</string>
-    <string name="focus_phase_focus">Фокус: убери телефон и читай</string>
+    <string name="focus_phase_idle">Готов к 30 минутам без отвлечений?</string>
+    <string name="focus_phase_focus">Фокус: убери телефон и работай</string>
     <string name="focus_phase_break">Перерыв 5 минут</string>
     <string name="focus_phase_done">Готово! Можно начинать новый цикл</string>
     <string name="focus_start">Начать</string>
@@ -74,7 +74,7 @@
     <string name="focus_skip_break">Пропустить перерыв</string>
     <string name="focus_cycles">Циклов сегодня: %1$d</string>
     <string name="focus_earned">+ %1$d мин за фокус</string>
-    <string name="focus_hint">Завершённый 25-минутный блок приносит минуты отдыха 1:1. Пауза не сбрасывает прогресс, уход с экрана — отменяет забег.</string>
+    <string name="focus_hint">Завершённый блок даёт отдых по курсу 2:1 — 30 минут фокуса = 15 минут отдыха. Пока идёт фокус, заблокированные приложения закрыты. Пауза снимает лок, сброс отменяет забег.</string>
     <string name="home_start_focus">Начать фокус-сессию</string>
     <string name="home_read">Читать</string>
     <string name="home_empty_mark">«</string>
@@ -155,6 +155,8 @@
     <string name="home_notif_off_action">Включить</string>
     <string name="blocked_message">Минуты кончились</string>
     <string name="blocked_hint">Почитай немного — и они вернутся. Ты уже знаешь, что это работает.</string>
+    <string name="blocked_focus_message">Идёт фокус-сессия</string>
+    <string name="blocked_focus_hint">Приложения закрыты до конца блока. Доработай — и получишь время отдыха.</string>
     <string name="blocked_unlock">Читать сейчас</string>
     <string name="blocked_spend_token">Потратить огонёк (+%1$d мин)</string>
     <string name="blocked_exit">Позже</string>

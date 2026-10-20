@@ -15,7 +15,7 @@ import com.antisdvg.databinding.FragmentFocusBinding
 import com.antisdvg.ui.AppViewModelFactory
 import kotlinx.coroutines.launch
 
-/** Focus tab: pomodoro-style 25/5 timer that earns entertainment minutes. */
+/** Focus tab: pomodoro-style 30/5 timer that earns entertainment minutes and locks the blocked apps. */
 class FocusFragment : Fragment(R.layout.fragment_focus) {
 
     private var _binding: FragmentFocusBinding? = null
@@ -51,6 +51,7 @@ class FocusFragment : Fragment(R.layout.fragment_focus) {
     private fun render(state: FocusUiState) {
         binding.focusTimerText.text = viewModel.formattedTime()
         binding.focusCyclesText.text = getString(R.string.focus_cycles, state.cyclesDone)
+
         binding.focusPhaseLabel.text = getString(
             when (state.phase) {
                 FocusPhase.FOCUS -> R.string.focus_phase_focus

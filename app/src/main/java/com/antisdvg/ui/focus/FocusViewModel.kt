@@ -1,8 +1,11 @@
 package com.antisdvg.ui.focus
 
+import android.app.Application
+import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.antisdvg.data.repository.DataRepository
+import com.antisdvg.service.BlockerService
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,19 +26,20 @@ data class FocusUiState(
     val lastEarned: Int = 0
 ) {
     companion object {
-        const val FOCUS_SECONDS = 25 * 60
+        const val FOCUS_SECONDS = 30 * 60
         const val BREAK_SECONDS = 5 * 60
     }
 }
 
 /**
- * Pomodoro-style focus timer. A finished 25-min block is recorded via
- * [DataRepository.recordFocusSession] and earns entertainment minutes 1:1.
- * The timer lives in the ViewModel, so rotation doesn't reset it, but leaving
- * the screen cancels the run (no background service yet).
+ * Pomodoro-style focus timer. A finished 30-min block is recorded via
+ * [DataRepository.recordFocusSession] and earns entertainment minutes at 2:1.
+ * The timer lives in the ViewModel, so rotation doesn't reset it. While the
+ * focus runs, the blocker is told to lock the blocked apps outright.
  */
 class FocusViewModel(
-    private val repo: DataRepository
+    private val repo: DataRepository,
+    private val app: Application
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(FocusUiState())
@@ -51,6 +55,7 @@ class FocusViewModel(
             else -> phaseSeconds(phase)
         }
         _state.update { it.copy(phase = phase, secondsLeft = seconds, running = true, lastEarned = 0) }
+        setLock(phase == FocusPhase.FOCUS)
         runTicker()
     }
 
@@ -58,12 +63,14 @@ class FocusViewModel(
         ticker?.cancel()
         ticker = null
         _state.update { it.copy(running = false) }
+        setLock(false)
     }
 
     fun stop() {
         ticker?.cancel()
         ticker = null
         _state.update { FocusUiState(cyclesDone = it.cyclesDone) }
+        setLock(false)
     }
 
     /** Skips the break and returns to idle, keeping the cycle count. */
@@ -72,6 +79,25 @@ class FocusViewModel(
         ticker?.cancel()
         ticker = null
         _state.update { it.copy(phase = FocusPhase.IDLE, secondsLeft = FocusUiState.FOCUS_SECONDS, running = false) }
+        setLock(false)
+    }
+
+    /**
+     * Tells the accessibility service whether the blocked apps must be walled
+     * off right now. Keeping this in the ViewModel means the wall survives the
+     * app going to the background - which is the whole point of a focus session.
+     */
+    private fun setLock(on: Boolean) {
+        app.sendBroadcast(
+            Intent(BlockerService.ACTION_FOCUS)
+                .setPackage(app.packageName)
+                .putExtra(BlockerService.EXTRA_FOCUS_ON, on)
+        )
+    }
+
+    override fun onCleared() {
+        setLock(false)
+        super.onCleared()
     }
 
     private fun phaseSeconds(phase: FocusPhase): Int = when (phase) {
@@ -106,6 +132,7 @@ class FocusViewModel(
                         lastEarned = earned
                     )
                 }
+                setLock(false)
                 runTicker()
             }
             else -> {
@@ -114,6 +141,7 @@ class FocusViewModel(
                 _state.update {
                     it.copy(phase = FocusPhase.DONE, secondsLeft = 0, running = false)
                 }
+                setLock(false)
             }
         }
     }

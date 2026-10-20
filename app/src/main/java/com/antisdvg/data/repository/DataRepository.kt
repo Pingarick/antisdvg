@@ -228,16 +228,18 @@ class DataRepository(
     // ---- Focus sessions ----
     /**
      * Records a completed pomodoro-style focus block: persists the session,
-     * credits entertainment minutes 1:1 and bumps lifetime focus stats.
+     * credits entertainment minutes at 2:1 (30 min of focus -> 15 min of rest)
+     * and bumps lifetime focus stats with the real focus time.
      * Returns the earned minutes.
      */
     @Transaction
     suspend fun recordFocusSession(durationMin: Int): Int {
-        val earned = durationMin.coerceAtLeast(0)
+        val focused = durationMin.coerceAtLeast(0)
+        val earned = com.antisdvg.util.FocusReward.earnedMinutes(focused)
         dao.insertFocusSession(
             FocusSession(
-                startedAt = System.currentTimeMillis() - earned * 60_000L,
-                durationMin = earned,
+                startedAt = System.currentTimeMillis() - focused * 60_000L,
+                durationMin = focused,
                 completed = true
             )
         )
@@ -250,7 +252,7 @@ class DataRepository(
         dao.upsertWallet(updated)
         prefs.writeRemainingMinutes(updated.minutesRemaining)
         val stats = dao.getStats() ?: UserStats()
-        dao.upsertStats(stats.copy(totalFocusMinutes = stats.totalFocusMinutes + earned))
+        dao.upsertStats(stats.copy(totalFocusMinutes = stats.totalFocusMinutes + focused))
         return earned
     }
 

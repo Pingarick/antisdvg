@@ -183,6 +183,10 @@ class BlockerService : AccessibilityService() {
         const val ACTION_REFRESH_BLOCKED = "com.antisdvg.REFRESH_BLOCKED"
         const val EXTRA_BLOCKED = "blocked_packages"
 
+        /** Sent by the focus screen: lock the blocked apps while a session runs. */
+        const val ACTION_FOCUS = "com.antisdvg.FOCUS_MODE"
+        const val EXTRA_FOCUS_ON = "focus_on"
+
         /** Broadcast to nudge the service to reload blocked apps + settings. */
         fun broadcastRefresh(context: Context) {
             context.sendBroadcast(Intent(ACTION_REFRESH_BLOCKED).setPackage(context.packageName))
@@ -195,8 +199,28 @@ class BlockerService : AccessibilityService() {
     @Volatile
     private var dailyLimitMin: Int = 0
 
+    /** A focus session locks the blocked apps outright, whatever the wallet says. */
+    @Volatile
+    private var focusMode = false
+
     private val refreshReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == ACTION_FOCUS) {
+                val on = intent.getBooleanExtra(EXTRA_FOCUS_ON, false)
+                focusMode = on
+                Log.d("BlockerSvc", "focus mode = $on")
+                if (on) {
+                    // The focus started while the user was already inside a blocked
+                    // app: put the wall up now, not on the next window event.
+                    if (activeApp?.let { it in blockedPackages } == true) {
+                        stopAccessSpendTimer(null)
+                        showBlockView()
+                    }
+                } else if (blockView != null) {
+                    removeBlockView()
+                }
+                return
+            }
             refreshFromDatabase()
         }
     }
@@ -225,7 +249,7 @@ class BlockerService : AccessibilityService() {
 
         registerReceiver(
             refreshReceiver,
-            IntentFilter(ACTION_REFRESH_BLOCKED),
+            IntentFilter(ACTION_REFRESH_BLOCKED).apply { addAction(ACTION_FOCUS) },
             android.content.Context.RECEIVER_NOT_EXPORTED
         )
 
@@ -318,7 +342,10 @@ class BlockerService : AccessibilityService() {
         if (capped) {
             Log.d("BlockerSvc", "daily limit reached spent=${prefs.currentSpentToday()} limit=$dailyLimitMin")
         }
-        if (remaining > 0 && !capped) {
+        if (focusMode) {
+            // A focus session locks the blocked apps outright, whatever the wallet.
+            showBlockView()
+        } else if (remaining > 0 && !capped) {
             startAccessSpendTimer()
         } else {
             showBlockView()
@@ -490,7 +517,9 @@ class BlockerService : AccessibilityService() {
         val themed = androidx.appcompat.view.ContextThemeWrapper(this, R.style.Theme_AntiSvdg)
         val view = android.view.LayoutInflater.from(themed).inflate(R.layout.view_block_overlay, null)
         view.findViewById<TextView>(R.id.block_message).text =
-            getString(R.string.blocked_message)
+            getString(if (focusMode) R.string.blocked_focus_message else R.string.blocked_message)
+        view.findViewById<TextView>(R.id.block_hint).text =
+            getString(if (focusMode) R.string.blocked_focus_hint else R.string.blocked_hint)
         // The price of a token is a setting, so the button names the real number.
         view.findViewById<Button>(R.id.block_spend_token).text =
             getString(R.string.blocked_spend_token, emergencyMinutes)
