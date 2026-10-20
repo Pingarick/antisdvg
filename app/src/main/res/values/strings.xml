@@ -21,7 +21,7 @@
     <string name="isbn_find">Найти</string>
     <string name="isbn_looking_up">Ищу…</string>
     <string name="isbn_not_found">В базах книги нет — ISBN подставил в форму, остальное заполни вручную</string>
-    <string name="isbn_error">Сеть недоступна — ISBN подставил в форму, заполни вручную</string>
+    <string name="isbn_error">Сервис поиска сейчас недоступен (кончилась квота) — ISBN подставил в форму, остальное заполни вручную или попробуй позже</string>
     <string name="editor_cover_preview">Обложка книги</string>
     <string name="editor_yandex_hint">Ссылка из Яндекс.Книг</string>
     <string name="yandex_find">Подтянуть</string>

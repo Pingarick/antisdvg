@@ -59,9 +59,15 @@ class BookEditorViewModel(
             // fall back to Open Library (keyless, reachable from any region).
             // Both wrapped: a double network failure must NOT crash the coroutine —
             // the UI just shows NOT_FOUND and the user can retype/retry.
+            // A refusal is not a missing book: when Google turns us away (its
+            // free quota is shared and runs out) and Open Library has no record,
+            // the honest answer is "the service is unavailable", not "the book
+            // does not exist" — otherwise the reader concludes just that.
+            var serviceRefused = false
             val result = runCatching {
                 lookupGoogle(cleanIsbn)
             }.recoverCatching { googleError ->
+                serviceRefused = true
                 android.util.Log.w(
                     "IsbnLookup",
                     "Google Books failed for $cleanIsbn: " +
@@ -70,7 +76,10 @@ class BookEditorViewModel(
                 lookupOpenLibrary(cleanIsbn)
             }.getOrNull()
             if (result == null) {
-                if (requestId == lookupRequestId) _lookupState.value = IsbnLookupState.NOT_FOUND
+                if (requestId == lookupRequestId) {
+                    _lookupState.value =
+                        if (serviceRefused) IsbnLookupState.ERROR else IsbnLookupState.NOT_FOUND
+                }
             } else {
                 if (requestId == lookupRequestId) {
                     _lookupResult.value = result
