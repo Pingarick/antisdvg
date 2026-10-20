@@ -53,6 +53,14 @@ android {
             ?: project.gradle.startParameter.projectProperties["DEEPSEEK_API_KEY"]
             ?: ""
         buildConfigField("String", "DEEPSEEK_API_KEY", "\"$deepSeekKey\"")
+
+    // Google Books API key: optional. Without it the free lookup quota is shared
+    // with everyone on the same IP and runs out (HTTP 429), and a scanned ISBN
+    // cannot be resolved. A key is free and gives this app its own quota.
+    val googleBooksKey = localProperty("GOOGLE_BOOKS_KEY")
+        ?: project.gradle.startParameter.projectProperties["GOOGLE_BOOKS_KEY"]
+        ?: ""
+    buildConfigField("String", "GOOGLE_BOOKS_KEY", "\"$googleBooksKey\"")
     }
 
     buildTypes {

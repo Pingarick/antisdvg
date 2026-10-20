@@ -17,6 +17,19 @@ object GoogleBooksClient {
         OkHttpClient.Builder()
             .connectTimeout(CONNECT_TIMEOUT, TimeUnit.SECONDS)
             .readTimeout(READ_TIMEOUT, TimeUnit.SECONDS)
+            // The free Google Books quota is per IP and shared, so a scanned ISBN
+            // often comes back 429. A key is free and gives the app its own quota;
+            // without one the request goes out unauthenticated, as before.
+            .addInterceptor { chain ->
+                val key = com.antisdvg.BuildConfig.GOOGLE_BOOKS_KEY
+                val request = chain.request()
+                if (key.isBlank() || !request.url.host.endsWith("googleapis.com")) {
+                    chain.proceed(request)
+                } else {
+                    val url = request.url.newBuilder().addQueryParameter("key", key).build()
+                    chain.proceed(request.newBuilder().url(url).build())
+                }
+            }
             .build()
     }
 
