@@ -81,6 +81,22 @@ class StatsFragment : Fragment(R.layout.fragment_stats) {
 
         binding.todayMinutesValue.text = state.todayMinutes.toString()
         binding.todayPagesValue.text = state.todayPages.toString()
+        // The chart follows the period, so its heading has to as well — a card
+        // titled «Эта неделя» over a month of bars is simply wrong.
+        when (state.period) {
+            StatsPeriod.MONTH -> {
+                binding.weekTitle.setText(R.string.stats_month_section)
+                binding.weekHint.setText(R.string.stats_month_label)
+            }
+            StatsPeriod.ALL -> {
+                binding.weekTitle.setText(R.string.stats_all_section)
+                binding.weekHint.setText(R.string.stats_all_label)
+            }
+            else -> {
+                binding.weekTitle.setText(R.string.stats_week_section)
+                binding.weekHint.setText(R.string.stats_week_label)
+            }
+        }
         binding.weekChart.setData(state.week)
 
         binding.statBooksValue.text = state.stats.totalBooksRead.toString()

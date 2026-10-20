@@ -166,7 +166,6 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         } else {
             ""
         }
-        renderWeek(state.week)
         renderGoal(state)
     }
 
@@ -233,7 +232,6 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         val showEmpty = !hasBooks
         binding.homeEmptyState.isVisible = showEmpty
         binding.homeContinueCard.isVisible = !showEmpty
-
         // Subtle entrance animation only on transition from empty → active state.
         if (!showEmpty && !continueCardJustShown) {
             continueCardJustShown = true
@@ -297,34 +295,6 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                 R.id.nav_reading,
                 Bundle().apply { putLong("bookId", book.id) }
             )
-        }
-    }
-
-    private fun renderWeek(days: List<com.antisdvg.data.model.DaySummary>) {
-        val container = binding.homeWeekChart
-        container.removeAllViews()
-        if (days.isEmpty()) return
-
-        val max = (days.maxOfOrNull { it.minutes } ?: 1).coerceAtLeast(1)
-
-        days.forEach { day ->
-            val value = day.minutes
-            val dayLabel = day.label ?: ""
-            val item = View.inflate(requireContext(), R.layout.item_home_week_day, null)
-            val bar = item.findViewById<View>(R.id.home_bar)
-            val label = item.findViewById<TextView>(R.id.home_day_label)
-            label.text = dayLabel
-
-            val minBar = 4.dpToPx()
-            val maxBar = 56.dpToPx()
-            val height = if (value <= 0) minBar else (minBar + (maxBar - minBar) * value / max).toInt()
-            item.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
-            bar.layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                height,
-            ).apply { gravity = Gravity.BOTTOM }
-
-            container.addView(item)
         }
     }
 

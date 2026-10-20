@@ -198,7 +198,11 @@
     <string name="stats_today_minutes_label">Минут заработано</string>
     <string name="stats_today_pages_label">Страниц прочитано</string>
     <string name="stats_week_section">Эта неделя</string>
+    <string name="stats_month_section">Этот месяц</string>
+    <string name="stats_all_section">Всё время</string>
     <string name="stats_week_label">Минут чтения за 7 дней</string>
+    <string name="stats_month_label">Минут чтения за месяц</string>
+    <string name="stats_all_label">Минут чтения за всё время</string>
     <string name="stats_streak_label">серия дней чтения</string>
     <string name="stats_achievements_title">Достижения</string>
     <string name="empty_stats">Пока нет данных. Начни читать, чтобы заработать время!</string>
