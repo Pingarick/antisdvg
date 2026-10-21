@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Anti-SDVG</string>
+    <string name="app_name">Анти-СДВГ</string>
 
     <!-- Navigation -->
     <string name="nav_books">Книги</string>
@@ -28,10 +28,10 @@
     <string name="yandex_looking_up">Подтягиваю…</string>
     <string name="yandex_not_found">Не удалось найти книгу по ссылке</string>
     <string name="barcode_scan">Сканировать штрихкод</string>
-    <string name="barcode_hint">Наведите камеру на штрихкод ISBN на обложке</string>
+    <string name="barcode_hint">Наведи камеру на штрихкод ISBN на обложке</string>
     <string name="barcode_scanning">Сканирую…</string>
     <string name="barcode_permission_denied">Нужно разрешение на камеру для сканирования</string>
-    <string name="barcode_scan_failed">Штрихкод не распознан. Попробуйте ещё раз.</string>
+    <string name="barcode_scan_failed">Штрихкод не распознан. Попробуй ещё раз.</string>
     <string name="editor_total_pages">Страниц всего</string>
     <string name="editor_current_page">Сейчас на стр.</string>
     <string name="editor_format">Формат книги</string>
@@ -137,7 +137,7 @@
     <!-- Settings -->
     <string name="blocked_apps">Заблокированные приложения</string>
     <string name="enable_blocker">Включить блокировку</string>
-    <string name="enable_blocker_summary">Открой системные настройки, включи сервис Anti-SDVG</string>
+    <string name="enable_blocker_summary">Открой системные настройки, включи сервис «Анти-СДВГ»</string>
     <string name="api_key">DeepSeek API ключ</string>
     <string name="api_key_hint">Вставь ключ (sk-…)</string>
     <string name="save_key">Сохранить ключ</string>
@@ -150,7 +150,7 @@
     <string name="blocked_mark">«</string>
     <string name="blocker_warning_channel">Состояние блокировки</string>
     <string name="blocker_warning_title">Блокировка выключена</string>
-    <string name="blocker_warning_text">Приложения не ограничиваются. Открой настройки и включи Anti-SDVG.</string>
+    <string name="blocker_warning_text">Приложения не ограничиваются. Открой настройки и включи «Анти-СДВГ».</string>
     <string name="home_blocker_off">Приложения не ограничиваются — блокировка выключена</string>
     <string name="home_blocker_off_action">Починить</string>
     <string name="home_notif_off">Уведомления выключены — не смогу предупредить, если блокировка отключится</string>
@@ -165,7 +165,7 @@
 
     <!-- Blocker foreground notification -->
     <string name="blocker_notification_channel">Блокировка отвлекающих приложений</string>
-    <string name="blocker_notification_title">Anti-SDVG активен</string>
+    <string name="blocker_notification_title">«Анти-СДВГ» активен</string>
     <string name="blocker_notification_text">Заблокированные приложения скрыты, пока ты не заработаешь время чтением.</string>
 
     <!-- Reading flow -->
@@ -215,6 +215,7 @@
     <string name="settings_title">Настройки</string>
     <string name="settings_open_system">Открыть системные настройки</string>
     <string name="settings_grant_overlay">Разрешить поверх других приложений</string>
+    <string name="settings_restricted_hint">Если переключатель в системных настройках серый: Настройки → Приложения → «Анти-СДВГ» → меню сверху → «Разрешить ограниченные настройки».</string>
     <string name="week_chart_entry">%1$s: %2$d мин</string>
     <string name="week_chart_minutes">%1$d мин</string>
     <string name="section_blocker">Блокировка приложений</string>
@@ -269,7 +270,7 @@
     <string name="error">Ошибка</string>
     <string name="offline_error">Нет соединения. Проверка чтения требует интернет.</string>
     <string name="blocked_packages_hint">Добавь пакет приложения (например com.google.android.youtube)</string>
-    <string name="blocker_description">Anti-SDVG блокирует отвлекающие приложения, пока ты не заслужишь время чтением.</string>
+    <string name="blocker_description">«Анти-СДВГ» блокирует отвлекающие приложения, пока ты не заслужишь время чтением.</string>
     <string name="blocked_notification_title">Блокировка</string>
     <string name="blocked_notification_text">У тебя нет доступа времени. Заработай его чтением книги!</string>
 

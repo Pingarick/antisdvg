@@ -136,7 +136,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/edit_book"
             android:src="@android:drawable/ic_menu_edit"
-            android:tint="@color/text_hint"
+            app:tint="@color/text_hint"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 

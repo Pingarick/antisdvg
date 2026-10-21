@@ -138,6 +138,7 @@ class BarcodeScanActivity : AppCompatActivity() {
     }
 
     /** Runs ML Kit on the current image; returns on the first decoded 13-digit ISBN. */
+    @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
     private fun processBarcode(imageProxy: ImageProxy) {
         val mediaImage = imageProxy.image
         if (mediaImage != null) {

@@ -98,6 +98,15 @@
                     android:text="@string/settings_grant_overlay"
                     android:visibility="gone"
                     android:textSize="14sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_sm"
+                    android:fontFamily="sans-serif"
+                    android:text="@string/settings_restricted_hint"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="@dimen/text_caption" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

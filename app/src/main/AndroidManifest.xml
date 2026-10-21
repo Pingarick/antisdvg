@@ -11,9 +11,6 @@
         android:name="android.hardware.camera"
         android:required="false" />
 
-    <!-- So the accessibility service can see when apps open -->
-    <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />
-
     <!-- Required to draw the full-screen "read to unlock" overlay above
          blocked apps. Without this, TYPE_APPLICATION_OVERLAY addView() throws
          a SecurityException and the block becomes invisible. -->

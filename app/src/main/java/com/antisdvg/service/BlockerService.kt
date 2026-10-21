@@ -246,10 +246,12 @@ class BlockerService : AccessibilityService() {
             1_500L
         )
 
-        registerReceiver(
+        val focusFilter = IntentFilter(ACTION_REFRESH_BLOCKED).apply { addAction(ACTION_FOCUS) }
+        androidx.core.content.ContextCompat.registerReceiver(
+            this,
             refreshReceiver,
-            IntentFilter(ACTION_REFRESH_BLOCKED).apply { addAction(ACTION_FOCUS) },
-            android.content.Context.RECEIVER_NOT_EXPORTED
+            focusFilter,
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
         )
 
         // Initial load.

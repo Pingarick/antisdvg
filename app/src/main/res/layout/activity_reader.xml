@@ -58,7 +58,7 @@
             android:padding="12dp"
             android:scaleType="centerInside"
             android:src="@drawable/ic_format_size"
-            android:tint="@color/text_secondary" />
+            app:tint="@color/text_secondary" />
 
         <ImageButton
             android:id="@+id/reader_menu"
@@ -69,7 +69,7 @@
             android:padding="12dp"
             android:scaleType="centerInside"
             android:src="@drawable/ic_menu"
-            android:tint="@color/text_secondary" />
+            app:tint="@color/text_secondary" />
 
         <ImageButton
             android:id="@+id/reader_close"
@@ -80,7 +80,7 @@
             android:padding="12dp"
             android:scaleType="centerInside"
             android:src="@drawable/ic_close"
-            android:tint="@color/text_secondary" />
+            app:tint="@color/text_secondary" />
     </LinearLayout>
 
     <FrameLayout
