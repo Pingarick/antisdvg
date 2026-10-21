@@ -41,15 +41,19 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // DeepSeek API key: taken from local.properties (machine-local, gitignored)
-        // or from -PDEEPSEEK_API_KEY on the command line.
+        // DeepSeek API key. Machine-local, never in git: environment variable,
+        // local.properties, or -PDEEPSEEK_API_KEY, in that order.
         //
         // It is still baked into the APK — the app has to carry it to work out of
         // the box — but it is no longer in the sources or in git history: this
         // repository has a public remote, and a key in the sources is a key
         // published. A machine without the key still builds; the app then says so
         // and the key can be pasted into its settings.
-        val deepSeekKey = localProperty("DEEPSEEK_API_KEY")
+        // Lookup order: environment variable -> local.properties -> -P flag.
+        // The env var keeps the key out of the project tree entirely (useful on a
+        // shared machine and in CI); local.properties stays the convenient default.
+        val deepSeekKey = System.getenv("DEEPSEEK_API_KEY")?.takeUnless { it.isBlank() }
+            ?: localProperty("DEEPSEEK_API_KEY")
             ?: project.gradle.startParameter.projectProperties["DEEPSEEK_API_KEY"]
             ?: ""
         buildConfigField("String", "DEEPSEEK_API_KEY", "\"$deepSeekKey\"")
@@ -57,7 +61,8 @@ android {
     // Google Books API key: optional. Without it the free lookup quota is shared
     // with everyone on the same IP and runs out (HTTP 429), and a scanned ISBN
     // cannot be resolved. A key is free and gives this app its own quota.
-    val googleBooksKey = localProperty("GOOGLE_BOOKS_KEY")
+    val googleBooksKey = System.getenv("GOOGLE_BOOKS_KEY")?.takeUnless { it.isBlank() }
+        ?: localProperty("GOOGLE_BOOKS_KEY")
         ?: project.gradle.startParameter.projectProperties["GOOGLE_BOOKS_KEY"]
         ?: ""
     buildConfigField("String", "GOOGLE_BOOKS_KEY", "\"$googleBooksKey\"")
