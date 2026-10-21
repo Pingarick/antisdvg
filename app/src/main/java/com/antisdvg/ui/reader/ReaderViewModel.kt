@@ -258,34 +258,9 @@ class ReaderViewModel(
 
     fun setTheme(theme: ReaderTheme) = _state.update { it.copy(theme = theme) }
 
-    fun cycleTheme() = setTheme(
-        when (_state.value.theme) {
-            ReaderTheme.PAPER -> ReaderTheme.SEPIA
-            ReaderTheme.SEPIA -> ReaderTheme.NIGHT
-            ReaderTheme.NIGHT -> ReaderTheme.BLACK
-            ReaderTheme.BLACK -> ReaderTheme.PAPER
-        }
-    )
-
-    /** Serif -> sans -> mono, then back. */
-    fun cycleFont() = _state.update {
-        it.copy(
-            font = when (it.font) {
-                ReaderFont.SERIF -> ReaderFont.SANS
-                ReaderFont.SANS -> ReaderFont.MONO
-                ReaderFont.MONO -> ReaderFont.SERIF
-            }
-        )
-    }
-
     fun setFont(font: ReaderFont) = _state.update { it.copy(font = font) }
 
     fun setMode(mode: ReaderMode) = _state.update { it.copy(mode = mode) }
-
-    /** Pages sideways <-> endless ribbon. */
-    fun cycleMode() = _state.update {
-        it.copy(mode = if (it.mode == ReaderMode.PAGED) ReaderMode.SCROLL else ReaderMode.PAGED)
-    }
 
     fun adjustFont(deltaPercent: Int) {
         _state.update {

@@ -137,6 +137,9 @@ class ReaderActivity : AppCompatActivity() {
      */
     private var openDialogs = 0
 
+    /** The "Оформление" sheet, if open; dismissed with the activity. */
+    private var styleSheet: com.google.android.material.bottomsheet.BottomSheetDialog? = null
+
     private val modalOpen: Boolean get() = openDialogs > 0
 
     /** Shows a dialog that owns the clock while it is up. */
@@ -389,6 +392,8 @@ class ReaderActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        styleSheet?.dismiss()
+        styleSheet = null
         tts?.shutdown()
         tts = null
     }
@@ -595,6 +600,26 @@ class ReaderActivity : AppCompatActivity() {
         val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(this)
         val view = layoutInflater.inflate(R.layout.sheet_reader_style, null)
         sheet.setContentView(view)
+        sheet.setTitle(getString(R.string.reader_style))
+
+        // Same bookkeeping as screenDialog: while the sheet is up the reader is not
+        // reading, so the clock and the speech engine must stand still. Otherwise a
+        // long stay in the sheet would keep paying minutes and counting pages.
+        openDialogs++
+        if (speaking) {
+            speechInterrupted = true
+            tts?.stop()
+        }
+        sheet.setOnDismissListener {
+            openDialogs = (openDialogs - 1).coerceAtLeast(0)
+            lastActivityMs = SystemClock.elapsedRealtime()
+            styleSheet = null
+            if (speechInterrupted && speaking) {
+                speechInterrupted = false
+                speakCurrentPage()
+            }
+        }
+        styleSheet = sheet
 
         val fontValue = view.findViewById<TextView>(R.id.style_font_value)
         val fontGroup =

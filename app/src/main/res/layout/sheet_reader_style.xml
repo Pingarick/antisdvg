@@ -41,6 +41,7 @@
 
         <TextView
             android:id="@+id/style_font_value"
+            android:accessibilityLiveRegion="polite"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -69,8 +70,9 @@
         android:id="@+id/style_font_group"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:singleLine="true"
-        app:singleSelection="true">
+        app:singleSelection="true"
+        app:chipMinHeight="48dp"
+        app:chipSpacingVertical="@dimen/space_sm">
 
         <com.google.android.material.chip.Chip
             android:id="@+id/style_font_serif"
@@ -110,7 +112,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:singleLine="false"
-        app:singleSelection="true">
+        app:singleSelection="true"
+        app:chipMinHeight="48dp"
+        app:chipSpacingVertical="@dimen/space_sm">
 
         <com.google.android.material.chip.Chip
             android:id="@+id/style_theme_paper"
@@ -158,7 +162,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:singleLine="false"
-        app:singleSelection="true">
+        app:singleSelection="true"
+        app:chipMinHeight="48dp"
+        app:chipSpacingVertical="@dimen/space_sm">
 
         <com.google.android.material.chip.Chip
             android:id="@+id/style_mode_paged"

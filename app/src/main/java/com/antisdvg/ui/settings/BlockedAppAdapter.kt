@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.antisdvg.R
 import com.antisdvg.data.model.BlockedApp
 import com.antisdvg.databinding.ItemBlockedAppBinding
 
@@ -28,8 +29,14 @@ class BlockedAppAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(app: BlockedApp) {
-            binding.blockedAppLabel.text = app.label.ifBlank { app.packageName }
+            val label = app.label.ifBlank { app.packageName }
+            binding.blockedAppLabel.text = label
+            // The package line is noise when it is the only thing we know.
             binding.blockedAppPackage.text = app.packageName
+            binding.blockedAppPackage.visibility =
+                if (app.packageName == label) android.view.View.GONE else android.view.View.VISIBLE
+            binding.btnRemoveBlockedApp.contentDescription =
+                binding.root.context.getString(R.string.delete_blocked_app) + ": " + label
             val icon = runCatching {
                 binding.root.context.packageManager.getApplicationIcon(app.packageName)
             }.getOrNull()

@@ -105,6 +105,9 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
             val show = binding.inputApiKey.visibility != View.VISIBLE
             binding.inputApiKey.visibility = if (show) View.VISIBLE else View.GONE
             binding.btnSaveApi.visibility = if (show) View.VISIBLE else View.GONE
+            binding.btnApiAdvanced.contentDescription =
+                getString(if (show) R.string.api_key_hide else R.string.api_key_show)
+            if (show) binding.inputApiKeyEdit.requestFocus()
         }
 
         binding.btnPickApp.setOnClickListener {

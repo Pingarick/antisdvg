@@ -335,7 +335,12 @@ internal object EpubBook {
             val bytes = entries[href] ?: return null
             if (bytes.size > MAX_IMAGE_BYTES || spent + bytes.size > MAX_TOTAL_IMAGE_BYTES) return null
             spent += bytes.size
-            val type = mimeType.ifBlank { mimeFor(href) }
+            // The media type comes from the book's own manifest: never interpolate it
+            // raw into the reader's HTML (it lands inside a src attribute of a WebView
+            // with a JS bridge). Only a plain image/* token is allowed through.
+            val type = mimeType
+                .takeIf { it.matches(Regex("image/[a-z0-9.+-]{1,30}")) }
+                ?: mimeFor(href)
             return "data:$type;base64," + Base64Lite.encode(bytes)
         }
     }

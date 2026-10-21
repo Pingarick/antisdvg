@@ -58,14 +58,36 @@ class FocusViewModel(
     init {
         // The service keeps the wall up from the persisted deadline, so a process
         // restart must resume the same block instead of orphaning it.
-        val until = PreferencesManager(app).readFocusUntilMs()
-        val left = ((until - System.currentTimeMillis()) / 1000L).toInt()
-        if (left in 1..FocusUiState.FOCUS_SECONDS) {
-            endsAtMs = until
-            _state.update { it.copy(phase = FocusPhase.FOCUS, secondsLeft = left, running = true) }
-            runTicker()
-        } else if (until != 0L) {
-            PreferencesManager(app).writeFocusUntilMs(0L)
+        val prefs = PreferencesManager(app)
+        val until = prefs.readFocusUntilMs()
+        val now = System.currentTimeMillis()
+        val left = ((until - now) / 1000L).toInt()
+        when {
+            left in 1..FocusUiState.FOCUS_SECONDS -> {
+                endsAtMs = until
+                _state.update { it.copy(phase = FocusPhase.FOCUS, secondsLeft = left, running = true) }
+                runTicker()
+            }
+            // The block ran out while the process was dead: the user wore the wall,
+            // so the reward is still owed. Pay it and offer the break.
+            until != 0L && now - until <= FocusUiState.FOCUS_SECONDS * 1000L -> {
+                prefs.writeFocusUntilMs(0L)
+                endsAtMs = now + FocusUiState.BREAK_SECONDS * 1000L
+                viewModelScope.launch {
+                    val earned = repo.recordFocusSession(FocusUiState.FOCUS_SECONDS / 60)
+                    _state.update {
+                        it.copy(
+                            phase = FocusPhase.BREAK,
+                            secondsLeft = FocusUiState.BREAK_SECONDS,
+                            cyclesDone = it.cyclesDone + 1,
+                            running = true,
+                            lastEarned = earned
+                        )
+                    }
+                    runTicker()
+                }
+            }
+            until != 0L -> prefs.writeFocusUntilMs(0L)
         }
     }
 
@@ -125,7 +147,9 @@ class FocusViewModel(
     }
 
     override fun onCleared() {
-        setLock(false)
+        // Deliberately does not clear the deadline: leaving the focus screen must not
+        // unlock the apps (that would be a one-tap escape). The block expires on its
+        // own deadline, and a later visit to this screen resumes it from prefs.
         super.onCleared()
     }
 
@@ -157,7 +181,11 @@ class FocusViewModel(
     private suspend fun onPhaseFinished() {
         when (_state.value.phase) {
             FocusPhase.FOCUS -> {
-                val earned = repo.recordFocusSession(FocusUiState.FOCUS_SECONDS / 60)
+                // Pause/Stop cancel the ticker; the grant itself must never be
+                // cancelled halfway or the wallet and the session row would disagree.
+                val earned = kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                    repo.recordFocusSession(FocusUiState.FOCUS_SECONDS / 60)
+                }
                 endsAtMs = System.currentTimeMillis() + FocusUiState.BREAK_SECONDS * 1000L
                 _state.update {
                     it.copy(

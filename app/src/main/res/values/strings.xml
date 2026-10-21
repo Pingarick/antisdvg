@@ -142,6 +142,8 @@
     <string name="api_key_hint">Вставь ключ (sk-…)</string>
     <string name="save_key">Сохранить ключ</string>
     <string name="api_advanced">Дополнительно</string>
+    <string name="api_key_show">Показать поле ключа API</string>
+    <string name="api_key_hide">Скрыть поле ключа API</string>
     <string name="api_key_builtin">Ключ уже встроен в приложение и работает. Это поле — только если захочешь заменить его своим.</string>
     <string name="unsaved_changes">Внеси ключ в local.properties или здесь</string>
     <string name="minutes_per_page">Минут доступа за 1 страницу</string>

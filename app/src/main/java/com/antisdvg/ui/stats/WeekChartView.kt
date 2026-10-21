@@ -97,24 +97,24 @@ class WeekChartView @JvmOverloads constructor(
         for (i in week.indices) {
             val day = week[i]
             val left = i * (barWidth + gap)
-            val barHeight = if (day.pages == 0) {
+            val barHeight = if (day.minutes == 0) {
                 dp(3f)
             } else {
-                ((baseline - topLimit) * (day.pages.toFloat() / max)).coerceAtLeast(dp(8f)) * grow
+                ((baseline - topLimit) * (day.minutes.toFloat() / max)).coerceAtLeast(dp(8f)) * grow
             }
             val top = baseline - barHeight
             val rect = RectF(left, top, left + barWidth, baseline)
             canvas.drawRoundRect(rect, dp(4f), dp(4f), if (isTodayBucket(i)) todayPaint else barPaint)
 
             // Empty-slice tick marker.
-            if (day.pages == 0) {
+            if (day.minutes == 0) {
                 canvas.drawLine(left + barWidth / 2f, baseline - dp(6f), left + barWidth / 2f, baseline - dp(1f), tickPaint)
             }
 
-            // Pages read in that slice, written above the bar (only when nonzero).
-            if (day.pages > 0) {
+            // Minutes read in that slice, written above the bar (only when nonzero).
+            if (day.minutes > 0) {
                 canvas.drawText(
-                    day.pages.toString(),
+                    day.minutes.toString(),
                     left + barWidth / 2f,
                     top - dp(2f),
                     labelPaint

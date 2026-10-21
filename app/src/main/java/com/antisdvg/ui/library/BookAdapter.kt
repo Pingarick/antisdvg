@@ -39,6 +39,9 @@ class BookAdapter(
         fun bind(book: Book) {
             binding.root.setOnClickListener { onClick(book) }
             binding.bookEdit.setOnClickListener { onEdit(book) }
+            // Without the title every row would announce the same "Изменить книгу".
+            binding.bookEdit.contentDescription =
+                binding.root.context.getString(R.string.edit_book) + ": " + book.title
             // No cover and no download: the title's initial, set like a spine
             // label, rather than an emoji standing in for every book alike.
             binding.bookCover.text = book.title.trim().firstOrNull()?.uppercase() ?: "—"

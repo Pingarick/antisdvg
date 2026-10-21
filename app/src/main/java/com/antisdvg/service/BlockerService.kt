@@ -199,6 +199,8 @@ class BlockerService : AccessibilityService() {
     @Volatile
     private var dailyLimitMin: Int = 0
 
+    private val uiHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
     /** True while a focus block is running according to the persisted deadline. */
     private fun focusActive(): Boolean =
         prefs.readFocusUntilMs() > System.currentTimeMillis()
@@ -212,11 +214,16 @@ class BlockerService : AccessibilityService() {
                     // The focus started while the user was already inside a blocked
                     // app: put the wall up now, not on the next window event.
                     if (activeApp?.let { it in blockedPackages } == true) {
-                        stopAccessSpendTimer(null)
+                        cancelSpendTimer()
                         showBlockView()
                     }
                 } else if (blockView != null) {
-                    removeBlockView()
+                    // Focus ended, but the user may still be inside a blocked app with
+                    // an empty wallet: run the normal gate instead of dropping the wall
+                    // and handing out free access.
+                    val app = activeApp
+                    if (app != null && app in blockedPackages) startAccessApplication(app)
+                    else removeBlockView()
                 }
                 return
             }
@@ -366,6 +373,13 @@ class BlockerService : AccessibilityService() {
             while (coroutineContext.isActive) {
                 delay(15_000)
                 if (!isScreenOn()) continue
+                // A focus block that started mid-visit must stop the meter even if
+                // its broadcast was missed (service rebound in between).
+                if (focusActive()) {
+                    cancelSpendTimer()
+                    showBlockView()
+                    break
+                }
                 val elapsed = System.currentTimeMillis()
                 // A heartbeat, so an interrupted visit can be measured even before
                 // the first full minute has been charged.
@@ -409,6 +423,13 @@ class BlockerService : AccessibilityService() {
      * Stops the in-flight spend timer. A partial (sub-minute) visit costs one
      * minute when the user spent at least 10s inside, so 59s peeks are not free.
      */
+    /** Stops access accounting without charging for the sliver in progress. */
+    private fun cancelSpendTimer() {
+        spendJob?.cancel()
+        spendJob = null
+        removeFloatingTimer()
+    }
+
     private fun stopAccessSpendTimer(nextPkg: String?) {
         Log.d("BlockerSvc", "stopAccessSpendTimer nextPkg=$nextPkg")
         val wasSpending = spendJob != null
@@ -607,9 +628,24 @@ class BlockerService : AccessibilityService() {
         try {
             windowManager.addView(view, params)
             blockView = view
+            // The wall has no other way to learn that a focus block ended while the
+            // app process was dead: check the deadline once it passes.
+            if (inFocus) {
+                val until = prefs.readFocusUntilMs()
+                val delayMs = (until - System.currentTimeMillis()).coerceAtLeast(0L)
+                uiHandler.postDelayed(focusExpiry, delayMs + 500L)
+            }
         } catch (e: Exception) {
             // Window already exists or permission missing; ignore.
             blockView = null
+        }
+    }
+
+    private val focusExpiry = Runnable {
+        if (!focusActive() && blockView != null) {
+            val app = activeApp
+            if (app != null && app in blockedPackages) startAccessApplication(app)
+            else removeBlockView()
         }
     }
 
@@ -622,6 +658,7 @@ class BlockerService : AccessibilityService() {
         }
 
     private fun removeBlockView() {
+        uiHandler.removeCallbacks(focusExpiry)
         val view = blockView
         if (view != null) {
             try {
