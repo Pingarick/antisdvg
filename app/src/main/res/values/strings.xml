@@ -64,6 +64,7 @@
 
     <!-- Focus -->
     <string name="focus_title">Фокус-сессия</string>
+    <string name="focus_timer_default">30:00</string>
     <string name="focus_phase_idle">Готов к 30 минутам без отвлечений?</string>
     <string name="focus_phase_focus">Фокус: убери телефон и работай</string>
     <string name="focus_phase_break">Перерыв 5 минут</string>
@@ -140,6 +141,7 @@
     <string name="api_key">DeepSeek API ключ</string>
     <string name="api_key_hint">Вставь ключ (sk-…)</string>
     <string name="save_key">Сохранить ключ</string>
+    <string name="api_advanced">Дополнительно</string>
     <string name="api_key_builtin">Ключ уже встроен в приложение и работает. Это поле — только если захочешь заменить его своим.</string>
     <string name="unsaved_changes">Внеси ключ в local.properties или здесь</string>
     <string name="minutes_per_page">Минут доступа за 1 страницу</string>
@@ -168,7 +170,7 @@
 
     <!-- Reading flow -->
     <string name="reading_title">Чтение</string>
-    <string name="reading_subtitle">Подтверди прочитанное страницы</string>
+    <string name="reading_subtitle">Подтверди прочитанные страницы</string>
     <string name="reading_start_page">С какой страницы начал?</string>
     <string name="reading_end_page">До какой страницы дошёл?</string>
     <string name="reading_verify">Подтвердить чтение</string>
@@ -211,6 +213,10 @@
 
     <!-- Settings screen -->
     <string name="settings_title">Настройки</string>
+    <string name="settings_open_system">Открыть системные настройки</string>
+    <string name="settings_grant_overlay">Разрешить поверх других приложений</string>
+    <string name="week_chart_entry">%1$s: %2$d мин</string>
+    <string name="week_chart_minutes">%1$d мин</string>
     <string name="section_blocker">Блокировка приложений</string>
     <string name="section_reading_rewards">Награды за чтение</string>
     <string name="section_api">Распознавание пересказов (ИИ)</string>
@@ -248,6 +254,7 @@
     <string name="not_started">Не начата</string>
     <string name="delete_book">Удалить книгу</string>
     <string name="delete_book_confirm">Удалить книгу?</string>
+    <string name="edit_book">Изменить книгу</string>
     <string name="start_reading_book">Читать</string>
     <string name="continue_reading">Продолжить</string>
 
@@ -290,6 +297,11 @@
     <string name="home_add_book_hint">Начни практику: добавь книгу, читай страницы и зарабатывай время на отдых</string>
     <!-- Built-in reader -->
     <string name="reader_close">Закрыть</string>
+    <string name="reader_style">Оформление</string>
+    <string name="reader_text_size">Размер текста</string>
+    <string name="reader_font_value">%1$d%%</string>
+    <string name="reader_font_minus_glyph">A-</string>
+    <string name="reader_font_plus_glyph">A+</string>
     <string name="reader_theme">Сменить тему</string>
     <string name="reader_theme_paper">Светлая тема</string>
     <string name="reader_theme_sepia">Сепия</string>

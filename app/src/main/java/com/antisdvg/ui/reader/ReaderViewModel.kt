@@ -278,6 +278,10 @@ class ReaderViewModel(
         )
     }
 
+    fun setFont(font: ReaderFont) = _state.update { it.copy(font = font) }
+
+    fun setMode(mode: ReaderMode) = _state.update { it.copy(mode = mode) }
+
     /** Pages sideways <-> endless ribbon. */
     fun cycleMode() = _state.update {
         it.copy(mode = if (it.mode == ReaderMode.PAGED) ReaderMode.SCROLL else ReaderMode.PAGED)

@@ -30,6 +30,14 @@ class BlockedAppAdapter(
         fun bind(app: BlockedApp) {
             binding.blockedAppLabel.text = app.label.ifBlank { app.packageName }
             binding.blockedAppPackage.text = app.packageName
+            val icon = runCatching {
+                binding.root.context.packageManager.getApplicationIcon(app.packageName)
+            }.getOrNull()
+            if (icon != null) {
+                binding.blockedAppIcon.setImageDrawable(icon)
+            } else {
+                binding.blockedAppIcon.setImageResource(android.R.drawable.sym_def_app_icon)
+            }
             binding.btnRemoveBlockedApp.setOnClickListener { onRemove(app) }
         }
     }

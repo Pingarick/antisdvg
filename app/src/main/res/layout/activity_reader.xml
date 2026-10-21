@@ -49,108 +49,38 @@
             android:textStyle="bold"
             tools:text="12:34" />
 
-        <TextView
+        <ImageButton
+            android:id="@+id/reader_style"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/reader_style"
+            android:padding="12dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_format_size"
+            android:tint="@color/text_secondary" />
+
+        <ImageButton
             android:id="@+id/reader_menu"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/reader_menu"
-            android:padding="6dp"
-            android:minWidth="44dp"
-            android:minHeight="44dp"
-            android:gravity="center"
-            android:text="☰"
-            android:textColor="@color/text_secondary"
-            android:textSize="17sp"
-            android:textStyle="bold" />
+            android:padding="12dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_menu"
+            android:tint="@color/text_secondary" />
 
-        <TextView
-            android:id="@+id/reader_theme"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/reader_theme"
-            android:padding="6dp"
-            android:minWidth="44dp"
-            android:minHeight="44dp"
-            android:gravity="center"
-            android:text="◐"
-            android:textSize="18sp" />
-
-        <TextView
-            android:id="@+id/reader_font"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/reader_font_family"
-            android:fontFamily="serif"
-            android:padding="6dp"
-            android:minWidth="44dp"
-            android:minHeight="44dp"
-            android:gravity="center"
-            android:text="@string/reader_font_glyph"
-            android:textColor="@color/text_secondary"
-            android:textSize="17sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/reader_mode"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/reader_mode"
-            android:padding="6dp"
-            android:minWidth="44dp"
-            android:minHeight="44dp"
-            android:gravity="center"
-            android:text="⇄"
-            android:textColor="@color/text_secondary"
-            android:textSize="17sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/reader_font_minus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/reader_font_smaller"
-            android:padding="6dp"
-            android:minWidth="44dp"
-            android:minHeight="44dp"
-            android:gravity="center"
-            android:text="A-"
-            android:textColor="@color/text_secondary"
-            android:textSize="15sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/reader_font_plus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/reader_font_bigger"
-            android:padding="6dp"
-            android:minWidth="44dp"
-            android:minHeight="44dp"
-            android:gravity="center"
-            android:text="A+"
-            android:textColor="@color/text_secondary"
-            android:textSize="15sp"
-            android:textStyle="bold" />
-
-        <TextView
+        <ImageButton
             android:id="@+id/reader_close"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/reader_close"
-            android:padding="6dp"
-            android:minWidth="44dp"
-            android:minHeight="44dp"
-            android:gravity="center"
-            android:text="✕"
-            android:textColor="@color/text_secondary"
-            android:textSize="18sp" />
+            android:padding="12dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_close"
+            android:tint="@color/text_secondary" />
     </LinearLayout>
 
     <FrameLayout
@@ -194,7 +124,7 @@
             android:ellipsize="end"
             android:fontFamily="sans-serif"
             android:maxLines="1"
-            android:textColor="@color/text_hint"
+            android:textColor="@color/text_secondary"
             android:textSize="13sp"
             tools:text="Глава вторая · 35% · стр. 120 из 340" />
 

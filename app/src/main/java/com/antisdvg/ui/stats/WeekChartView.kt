@@ -54,6 +54,15 @@ class WeekChartView @JvmOverloads constructor(
             return
         }
         this.week = week
+        // A canvas-drawn chart is invisible to TalkBack unless it describes itself.
+        contentDescription = week.joinToString(", ") { day ->
+            val label = day.label.orEmpty()
+            if (label.isBlank()) {
+                context.getString(R.string.week_chart_minutes, day.minutes)
+            } else {
+                context.getString(R.string.week_chart_entry, label, day.minutes)
+            }
+        }
         animator?.cancel()
         animator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 360L

@@ -243,20 +243,7 @@ class ReaderActivity : AppCompatActivity() {
         binding.readerFinish.setOnClickListener { onFinishClicked() }
         binding.readerTts.setOnClickListener { toggleSpeech() }
         binding.readerMenu.setOnClickListener { showReaderMenu() }
-        binding.readerTheme.setOnClickListener {
-            viewModel.cycleTheme()
-            toast(themeLabel(viewModel.state.value.theme))
-        }
-        binding.readerFont.setOnClickListener {
-            viewModel.cycleFont()
-            toast(fontLabel(viewModel.state.value.font))
-        }
-        binding.readerMode.setOnClickListener {
-            viewModel.cycleMode()
-            toast(modeLabel(viewModel.state.value.mode))
-        }
-        binding.readerFontMinus.setOnClickListener { viewModel.adjustFont(-10) }
-        binding.readerFontPlus.setOnClickListener { viewModel.adjustFont(10) }
+        binding.readerStyle.setOnClickListener { showStyleSheet() }
 
         binding.readerTimer.visibility = View.INVISIBLE
         applyBrightness()
@@ -584,12 +571,10 @@ class ReaderActivity : AppCompatActivity() {
         binding.readerWeb.setBackgroundColor(bg)
         binding.readerTitle.setTextColor(fg)
         binding.readerPercent.setTextColor(muted)
-        binding.readerTheme.setTextColor(muted)
-        binding.readerFont.setTextColor(muted)
-        binding.readerMode.setTextColor(muted)
-        binding.readerFontMinus.setTextColor(muted)
-        binding.readerFontPlus.setTextColor(muted)
-        binding.readerClose.setTextColor(muted)
+        val chromeTint = android.content.res.ColorStateList.valueOf(muted)
+        binding.readerStyle.imageTintList = chromeTint
+        binding.readerMenu.imageTintList = chromeTint
+        binding.readerClose.imageTintList = chromeTint
         binding.readerStatus.setTextColor(muted)
         window.statusBarColor = bg
         window.navigationBarColor = bg
@@ -602,29 +587,94 @@ class ReaderActivity : AppCompatActivity() {
 
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
 
-    private fun themeLabel(theme: ReaderTheme): String = getString(
-        when (theme) {
-            ReaderTheme.PAPER -> R.string.reader_theme_paper
-            ReaderTheme.SEPIA -> R.string.reader_theme_sepia
-            ReaderTheme.NIGHT -> R.string.reader_theme_night
-            ReaderTheme.BLACK -> R.string.reader_theme_black
-        }
-    )
+    /**
+     * Typography in one sheet. The bar used to carry five separate glyph buttons,
+     * which squeezed the book title to nothing on a 360dp screen.
+     */
+    private fun showStyleSheet() {
+        val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.sheet_reader_style, null)
+        sheet.setContentView(view)
 
-    private fun fontLabel(font: ReaderFont): String = getString(
-        when (font) {
-            ReaderFont.SERIF -> R.string.reader_font_serif
-            ReaderFont.SANS -> R.string.reader_font_sans
-            ReaderFont.MONO -> R.string.reader_font_mono
-        }
-    )
+        val fontValue = view.findViewById<TextView>(R.id.style_font_value)
+        val fontGroup =
+            view.findViewById<com.google.android.material.chip.ChipGroup>(R.id.style_font_group)
+        val themeGroup =
+            view.findViewById<com.google.android.material.chip.ChipGroup>(R.id.style_theme_group)
+        val modeGroup =
+            view.findViewById<com.google.android.material.chip.ChipGroup>(R.id.style_mode_group)
 
-    private fun modeLabel(mode: ReaderMode): String = getString(
-        when (mode) {
-            ReaderMode.PAGED -> R.string.reader_mode_paged
-            ReaderMode.SCROLL -> R.string.reader_mode_scroll
+        fun sync() {
+            val state = viewModel.state.value
+            fontValue.text = getString(R.string.reader_font_value, state.fontPercent)
+            fontGroup.check(
+                when (state.font) {
+                    ReaderFont.SERIF -> R.id.style_font_serif
+                    ReaderFont.SANS -> R.id.style_font_sans
+                    ReaderFont.MONO -> R.id.style_font_mono
+                }
+            )
+            themeGroup.check(
+                when (state.theme) {
+                    ReaderTheme.PAPER -> R.id.style_theme_paper
+                    ReaderTheme.SEPIA -> R.id.style_theme_sepia
+                    ReaderTheme.NIGHT -> R.id.style_theme_night
+                    ReaderTheme.BLACK -> R.id.style_theme_black
+                }
+            )
+            modeGroup.check(
+                if (state.mode == ReaderMode.PAGED) R.id.style_mode_paged else R.id.style_mode_scroll
+            )
         }
-    )
+
+        view.findViewById<View>(R.id.style_font_minus).setOnClickListener {
+            viewModel.adjustFont(-10)
+            sync()
+        }
+        view.findViewById<View>(R.id.style_font_plus).setOnClickListener {
+            viewModel.adjustFont(10)
+            sync()
+        }
+        view.findViewById<View>(R.id.style_font_serif).setOnClickListener {
+            viewModel.setFont(ReaderFont.SERIF)
+            sync()
+        }
+        view.findViewById<View>(R.id.style_font_sans).setOnClickListener {
+            viewModel.setFont(ReaderFont.SANS)
+            sync()
+        }
+        view.findViewById<View>(R.id.style_font_mono).setOnClickListener {
+            viewModel.setFont(ReaderFont.MONO)
+            sync()
+        }
+        view.findViewById<View>(R.id.style_theme_paper).setOnClickListener {
+            viewModel.setTheme(ReaderTheme.PAPER)
+            sync()
+        }
+        view.findViewById<View>(R.id.style_theme_sepia).setOnClickListener {
+            viewModel.setTheme(ReaderTheme.SEPIA)
+            sync()
+        }
+        view.findViewById<View>(R.id.style_theme_night).setOnClickListener {
+            viewModel.setTheme(ReaderTheme.NIGHT)
+            sync()
+        }
+        view.findViewById<View>(R.id.style_theme_black).setOnClickListener {
+            viewModel.setTheme(ReaderTheme.BLACK)
+            sync()
+        }
+        view.findViewById<View>(R.id.style_mode_paged).setOnClickListener {
+            viewModel.setMode(ReaderMode.PAGED)
+            sync()
+        }
+        view.findViewById<View>(R.id.style_mode_scroll).setOnClickListener {
+            viewModel.setMode(ReaderMode.SCROLL)
+            sync()
+        }
+
+        sync()
+        sheet.show()
+    }
 
     // ---- Page: styles, paging script ----
 

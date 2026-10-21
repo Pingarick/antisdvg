@@ -10,13 +10,12 @@
     android:orientation="horizontal"
     android:paddingHorizontal="4dp">
 
-    <TextView
+    <ImageView
         android:id="@+id/blocked_app_icon"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:fontFamily="serif"
-        android:text=""
-        android:textSize="20sp" />
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:contentDescription="@null"
+        android:scaleType="fitCenter" />
 
     <LinearLayout
         android:layout_width="0dp"
@@ -49,8 +48,8 @@
 
     <ImageButton
         android:id="@+id/btn_remove_blocked_app"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/delete_blocked_app"
         android:src="@drawable/ic_delete"

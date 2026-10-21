@@ -20,6 +20,6 @@
         android:layout_marginTop="6dp"
         android:gravity="center"
         android:textAppearance="@style/TextAppearance.Md.Caption"
-        android:textColor="@color/text_hint"
+        android:textColor="@color/text_secondary"
         tools:ignore="HardcodedText" />
 </LinearLayout>

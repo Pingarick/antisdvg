@@ -21,7 +21,7 @@
         android:layout_height="wrap_content"
         android:fontFamily="serif"
         android:text="@string/blocked_mark"
-        android:textColor="@color/brass"
+        android:textColor="@color/brown"
         android:textSize="48sp" />
 
     <TextView

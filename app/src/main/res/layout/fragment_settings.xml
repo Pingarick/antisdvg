@@ -86,7 +86,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="Открыть системные настройки"
+                    android:text="@string/settings_open_system"
                     android:textSize="14sp" />
 
                 <com.google.android.material.button.MaterialButton
@@ -95,7 +95,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="Разрешить поверх других приложений"
+                    android:text="@string/settings_grant_overlay"
                     android:visibility="gone"
                     android:textSize="14sp" />
             </LinearLayout>
@@ -220,36 +220,6 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/input_api_key"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:endIconMode="password_toggle"
-                    android:hint="@string/api_key"
-                    app:helperText="@string/api_key_builtin"
-                    app:helperTextEnabled="true"
-                    app:boxBackgroundColor="@color/cream_light"
-                    app:boxStrokeColor="@color/accent_primary"
-                    app:boxStrokeWidth="1dp">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/input_api_key_edit"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="textPassword"
-                        android:maxLines="1" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_save_api"
-                    style="@style/Widget.Book.Button"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="@string/save_key"
-                    android:textSize="14sp" />
-
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -290,6 +260,48 @@
                         android:text="@string/strictness_strict"
                         android:textSize="13sp" />
                 </RadioGroup>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_api_advanced"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/api_advanced"
+                    android:textSize="13sp" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/input_api_key"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:hint="@string/api_key"
+                    android:visibility="gone"
+                    app:boxBackgroundColor="@color/cream_light"
+                    app:boxStrokeColor="@color/accent_primary"
+                    app:boxStrokeWidth="1dp"
+                    app:endIconMode="password_toggle"
+                    app:helperText="@string/api_key_builtin"
+                    app:helperTextEnabled="true">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/input_api_key_edit"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textPassword"
+                        android:maxLines="1" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_save_api"
+                    style="@style/Widget.Book.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/save_key"
+                    android:textSize="14sp"
+                    android:visibility="gone" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

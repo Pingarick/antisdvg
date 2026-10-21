@@ -99,6 +99,14 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
             }
         }
 
+        // The built-in key works out of the box, so replacing it is a rare chore:
+        // keep the field folded away until it is actually needed.
+        binding.btnApiAdvanced.setOnClickListener {
+            val show = binding.inputApiKey.visibility != View.VISIBLE
+            binding.inputApiKey.visibility = if (show) View.VISIBLE else View.GONE
+            binding.btnSaveApi.visibility = if (show) View.VISIBLE else View.GONE
+        }
+
         binding.btnPickApp.setOnClickListener {
             showInstalledAppPicker()
         }

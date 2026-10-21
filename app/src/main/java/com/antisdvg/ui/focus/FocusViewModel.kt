@@ -48,12 +48,20 @@ class FocusViewModel(
 
     private var ticker: Job? = null
 
+    /**
+     * Wall-clock deadline of the running phase. Ticking from a deadline instead of
+     * decrementing a counter keeps the session honest while the app is frozen in
+     * the background or the screen is off.
+     */
+    private var endsAtMs: Long = 0L
+
     init {
         // The service keeps the wall up from the persisted deadline, so a process
         // restart must resume the same block instead of orphaning it.
         val until = PreferencesManager(app).readFocusUntilMs()
         val left = ((until - System.currentTimeMillis()) / 1000L).toInt()
         if (left in 1..FocusUiState.FOCUS_SECONDS) {
+            endsAtMs = until
             _state.update { it.copy(phase = FocusPhase.FOCUS, secondsLeft = left, running = true) }
             runTicker()
         } else if (until != 0L) {
@@ -68,6 +76,7 @@ class FocusViewModel(
             _state.value.secondsLeft > 0 && _state.value.secondsLeft < phaseSeconds(phase) -> _state.value.secondsLeft
             else -> phaseSeconds(phase)
         }
+        endsAtMs = System.currentTimeMillis() + seconds * 1000L
         _state.update { it.copy(phase = phase, secondsLeft = seconds, running = true, lastEarned = 0) }
         setLock(phase == FocusPhase.FOCUS)
         runTicker()
@@ -76,13 +85,16 @@ class FocusViewModel(
     fun pause() {
         ticker?.cancel()
         ticker = null
-        _state.update { it.copy(running = false) }
+        val left = remainingSeconds()
+        endsAtMs = 0L
+        _state.update { it.copy(running = false, secondsLeft = left) }
         setLock(false)
     }
 
     fun stop() {
         ticker?.cancel()
         ticker = null
+        endsAtMs = 0L
         _state.update { FocusUiState(cyclesDone = it.cyclesDone) }
         setLock(false)
     }
@@ -92,6 +104,7 @@ class FocusViewModel(
         if (_state.value.phase != FocusPhase.BREAK) return
         ticker?.cancel()
         ticker = null
+        endsAtMs = 0L
         _state.update { it.copy(phase = FocusPhase.IDLE, secondsLeft = FocusUiState.FOCUS_SECONDS, running = false) }
         setLock(false)
     }
@@ -104,7 +117,7 @@ class FocusViewModel(
     private fun setLock(on: Boolean) {
         val prefs = PreferencesManager(app)
         prefs.writeFocusUntilMs(
-            if (on) System.currentTimeMillis() + _state.value.secondsLeft * 1000L else 0L
+            if (on) System.currentTimeMillis() + remainingSeconds() * 1000L else 0L
         )
         app.sendBroadcast(
             Intent(BlockerService.ACTION_FOCUS).setPackage(app.packageName)
@@ -126,7 +139,7 @@ class FocusViewModel(
         ticker = viewModelScope.launch {
             while (true) {
                 delay(1_000)
-                val left = _state.value.secondsLeft - 1
+                val left = remainingSeconds()
                 if (left <= 0) {
                     onPhaseFinished()
                     return@launch
@@ -136,10 +149,16 @@ class FocusViewModel(
         }
     }
 
+    private fun remainingSeconds(): Int {
+        if (endsAtMs == 0L) return _state.value.secondsLeft
+        return ((endsAtMs - System.currentTimeMillis()) / 1000L).toInt().coerceAtLeast(0)
+    }
+
     private suspend fun onPhaseFinished() {
         when (_state.value.phase) {
             FocusPhase.FOCUS -> {
                 val earned = repo.recordFocusSession(FocusUiState.FOCUS_SECONDS / 60)
+                endsAtMs = System.currentTimeMillis() + FocusUiState.BREAK_SECONDS * 1000L
                 _state.update {
                     it.copy(
                         phase = FocusPhase.BREAK,
@@ -154,6 +173,7 @@ class FocusViewModel(
             else -> {
                 ticker?.cancel()
                 ticker = null
+                endsAtMs = 0L
                 _state.update {
                     it.copy(phase = FocusPhase.DONE, secondsLeft = 0, running = false)
                 }

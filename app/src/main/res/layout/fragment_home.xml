@@ -150,7 +150,7 @@
                     android:text="0"
                     android:fontFamily="serif"
                         android:textAppearance="@style/TextAppearance.Md.Headline"
-                    android:textColor="@color/brass"
+                    android:textColor="@color/brown"
                     tools:ignore="HardcodedText" />
 
                 <TextView
@@ -209,7 +209,7 @@
                         android:fontFamily="serif"
                         android:gravity="center"
                         android:text="—"
-                        android:textColor="@color/brass"
+                        android:textColor="@color/brown"
                         android:textSize="34sp"
                         tools:ignore="HardcodedText" />
 
@@ -258,7 +258,7 @@
                         android:layout_marginTop="@dimen/space_sm"
                         android:text=""
                         android:textAppearance="@style/TextAppearance.Md.Caption"
-                        android:textColor="@color/text_hint"
+                        android:textColor="@color/text_secondary"
                         tools:ignore="HardcodedText" />
 
                     <TextView
@@ -268,7 +268,7 @@
                         android:layout_marginTop="2dp"
                         android:text=""
                         android:textAppearance="@style/TextAppearance.Md.Caption"
-                        android:textColor="@color/brass"
+                        android:textColor="@color/brown"
                         tools:ignore="HardcodedText" />
                 </LinearLayout>
             </LinearLayout>
@@ -344,7 +344,7 @@
                     android:layout_marginEnd="@dimen/space_md"
                     android:text="@string/home_today_minutes"
                     android:textAppearance="@style/TextAppearance.Md.Body2"
-                    android:textColor="@color/text_hint" />
+                    android:textColor="@color/text_secondary" />
 
                 <TextView
                     android:id="@+id/home_today_pages"
@@ -361,7 +361,7 @@
                     android:layout_marginStart="@dimen/space_xs"
                     android:text="@string/home_today_pages"
                     android:textAppearance="@style/TextAppearance.Md.Body2"
-                    android:textColor="@color/text_hint" />
+                    android:textColor="@color/text_secondary" />
             </LinearLayout>
         </LinearLayout>
 
@@ -382,7 +382,7 @@
                 android:layout_height="wrap_content"
                 android:text="0"
                 android:textAppearance="@style/TextAppearance.Md.Number"
-                android:textColor="@color/brass"
+                android:textColor="@color/brown"
                 tools:ignore="HardcodedText" />
 
             <LinearLayout
@@ -404,7 +404,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:textAppearance="@style/TextAppearance.Md.Caption"
-                    android:textColor="@color/text_hint"
+                    android:textColor="@color/text_secondary"
                     tools:text="сегодня потрачено 12 мин" />
             </LinearLayout>
         </LinearLayout>
@@ -434,7 +434,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:textAppearance="@style/TextAppearance.Md.Caption"
-                android:textColor="@color/text_hint"
+                android:textColor="@color/text_secondary"
                 tools:text="0 из 120 мин" />
 
             <ProgressBar
@@ -505,7 +505,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/home_empty_mark"
                 android:textAppearance="@style/TextAppearance.Md.Number"
-                android:textColor="@color/brass" />
+                android:textColor="@color/brown" />
 
             <TextView
                 android:layout_width="wrap_content"

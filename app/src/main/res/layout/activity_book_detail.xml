@@ -37,7 +37,7 @@
             android:layout_marginTop="6dp"
             android:fontFamily="serif"
             android:text="@string/editor_hint"
-            android:textColor="@color/text_hint"
+            android:textColor="@color/text_secondary"
             android:textSize="14sp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -156,8 +156,10 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:minWidth="0dp"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
+                android:letterSpacing="0.03"
+                android:maxLines="1"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
                 android:text="@string/isbn_find"
                 android:textSize="14sp" />
         </LinearLayout>
