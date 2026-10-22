@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/paper"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/space_sm"
+        android:paddingTop="@dimen/space_sm"
+        android:paddingEnd="@dimen/screen_padding_h">
+
+        <ImageButton
+            android:id="@+id/catalog_back"
+            android:layout_width="@dimen/touch_min"
+            android:layout_height="@dimen/touch_min"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/catalog_back"
+            android:padding="@dimen/space_md"
+            android:src="@drawable/ic_back"
+            app:tint="@color/text_primary" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/space_xs"
+            android:layout_weight="1"
+            android:fontFamily="serif"
+            android:text="@string/catalog_title"
+            android:textColor="@color/text_primary"
+            android:textSize="@dimen/text_headline"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="@dimen/screen_padding_h"
+        android:paddingTop="@dimen/space_xs"
+        android:paddingEnd="@dimen/screen_padding_h"
+        android:text="@string/catalog_subtitle"
+        android:textColor="@color/text_secondary"
+        android:textSize="@dimen/text_body_sm" />
+
+    <com.google.android.material.textfield.TextInputLayout
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/screen_padding_h"
+        android:layout_marginTop="@dimen/space_md"
+        android:layout_marginEnd="@dimen/screen_padding_h"
+        android:hint="@string/catalog_search_hint"
+        app:boxBackgroundColor="@color/cream_light"
+        app:boxStrokeColor="@color/accent_primary"
+        app:boxStrokeWidth="1dp"
+        app:endIconMode="clear_text"
+        app:startIconDrawable="@drawable/ic_search">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/catalog_search"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:imeOptions="actionSearch"
+            android:inputType="text"
+            android:maxLines="1" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <TextView
+        android:id="@+id/catalog_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:accessibilityLiveRegion="polite"
+        android:gravity="center"
+        android:paddingStart="@dimen/screen_padding_h"
+        android:paddingTop="@dimen/space_xl"
+        android:paddingEnd="@dimen/screen_padding_h"
+        android:textColor="@color/text_secondary"
+        android:textSize="@dimen/text_body_sm"
+        android:visibility="gone"
+        tools:text="Ничего не нашлось" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/catalog_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingStart="@dimen/space_lg"
+        android:paddingTop="@dimen/space_sm"
+        android:paddingEnd="@dimen/space_lg"
+        android:paddingBottom="@dimen/space_xl"
+        android:scrollbars="none" />
+
+</LinearLayout>

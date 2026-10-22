@@ -62,6 +62,9 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
         binding.importBookBtn.setOnClickListener {
             importLauncher.launch(arrayOf("*/*"))
         }
+        binding.libraryTabCatalog.setOnClickListener {
+            findNavController().navigate(R.id.nav_catalog)
+        }
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -79,6 +82,12 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
                 viewModel.importEvents.collect { event -> handleImport(event) }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // The catalogue is a separate screen; coming back here means "shelf".
+        _binding?.libraryTabShelf?.isChecked = true
     }
 
     private fun handleImport(event: ImportEvent) {

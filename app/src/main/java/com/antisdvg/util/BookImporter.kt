@@ -41,12 +41,39 @@ object BookImporter {
         val kind = detectKind(displayName, context.contentResolver.getType(uri))
             ?: throw UnsupportedFormatException()
 
-        val booksDir = File(context.filesDir, "books").apply { mkdirs() }
-        val stash = File(booksDir, "${UUID.randomUUID()}.tmp")
+        val stash = newStash(context)
         context.contentResolver.openInputStream(uri)?.use { input ->
             stash.outputStream().use { output -> input.copyTo(output) }
         } ?: return null
 
+        return importStashed(context, stash, displayName, kind)
+    }
+
+    /**
+     * Same pipeline for a file the app downloaded itself (the catalogue): there is
+     * no content resolver, the bytes are already on disk.
+     */
+    fun import(context: Context, file: File, displayName: String): Imported? {
+        val kind = detectKind(displayName, null) ?: throw UnsupportedFormatException()
+        val stash = newStash(context)
+        file.inputStream().use { input ->
+            stash.outputStream().use { output -> input.copyTo(output) }
+        }
+        return importStashed(context, stash, displayName, kind)
+    }
+
+    private fun newStash(context: Context): File {
+        val booksDir = File(context.filesDir, "books").apply { mkdirs() }
+        return File(booksDir, "${UUID.randomUUID()}.tmp")
+    }
+
+    private fun importStashed(
+        context: Context,
+        stash: File,
+        displayName: String,
+        kind: Kind
+    ): Imported? {
+        val booksDir = File(context.filesDir, "books").apply { mkdirs() }
         val (file, finalKind) = when (kind) {
             Kind.ZIP -> {
                 // A plain zip may still be an EPUB in disguise: some libraries

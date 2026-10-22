@@ -45,4 +45,10 @@
         android:label="@string/focus_title"
         tools:layout="@layout/fragment_focus" />
 
+    <fragment
+        android:id="@+id/nav_catalog"
+        android:name="com.antisdvg.ui.catalog.CatalogFragment"
+        android:label="@string/catalog_title"
+        tools:layout="@layout/fragment_catalog" />
+
 </navigation>

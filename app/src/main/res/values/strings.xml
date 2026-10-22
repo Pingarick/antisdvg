@@ -239,6 +239,21 @@
 
     <!-- Library screen -->
     <string name="library_title">Мои книги</string>
+    <string name="library_my_shelf">Моя полка</string>
+    <string name="library_catalog">Каталог</string>
+
+    <!-- Free catalogue (Project Gutenberg) -->
+    <string name="catalog_title">Каталог</string>
+    <string name="catalog_back">Назад</string>
+    <string name="catalog_subtitle">Свободные книги Project Gutenberg</string>
+    <string name="catalog_search_hint">Название или автор</string>
+    <string name="catalog_download">Скачать</string>
+    <string name="catalog_downloading">Скачиваю</string>
+    <string name="catalog_read">Читать</string>
+    <string name="catalog_retry">Повторить</string>
+    <string name="catalog_empty">Ничего не нашлось</string>
+    <string name="catalog_loading">Ищу…</string>
+    <string name="catalog_error">Каталог недоступен. Проверь интернет и попробуй ещё раз.</string>
     <string name="library_reading_line">Сейчас читаю</string>
     <plurals name="book_count">
         <item quantity="one">%1$d книга</item>
