@@ -1,7 +1,6 @@
 package com.antisdvg.data.remote
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -40,9 +39,12 @@ class CatalogClientTest {
 
         assertEquals(2, books.size)
         val first = books[0]
+        assertEquals("g1342", first.id)
+        assertEquals(CatalogSource.GUTENBERG, first.source)
         assertEquals("Pride and Prejudice", first.title)
         assertEquals("Jane Austen", first.author)
         assertEquals("англ", first.language)
+        assertEquals("EPUB", first.format)
         assertEquals("https://example.org/1342.epub", first.downloadUrl)
         assertTrue(first.fileName.endsWith(".epub"))
     }
@@ -54,23 +56,15 @@ class CatalogClientTest {
         assertEquals("Crime and Punishment", second.title)
         assertEquals("", second.author)
         assertEquals("рус", second.language)
+        assertEquals("TXT", second.format)
         assertEquals("https://example.org/2554.txt", second.downloadUrl)
         assertTrue(second.fileName.endsWith(".txt"))
     }
 
     @Test
     fun `a book without any file is not offered`() {
-        val empty = CatalogClient.parse("""{"results":[{"id":1,"title":"","formats":{}}]}""")
+        val empty = CatalogClient.parse("""{"results":[{"id":1,"title":"X","formats":{}}]}""")
         assertEquals(0, empty.size)
-    }
-
-    @Test
-    fun `unknown language code is passed through, missing formats stay null`() {
-        val books = CatalogClient.parse(
-            """{"results":[{"id":9,"title":"X","languages":["la"],"formats":{}}]}"""
-        )
-        assertEquals("la", books[0].language)
-        assertNull(books[0].downloadUrl)
     }
 
     @Test

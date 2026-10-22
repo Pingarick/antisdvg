@@ -33,7 +33,7 @@ class CatalogAdapter(
             binding.catalogAuthor.text = item.book.author.ifBlank { "—" }
             binding.catalogMeta.text = listOf(
                 item.book.language,
-                if (item.book.epubUrl != null) "EPUB" else "TXT"
+                item.book.format
             ).filter { it.isNotBlank() }.joinToString(" · ")
 
             binding.catalogAction.apply {

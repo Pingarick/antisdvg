@@ -3,24 +3,31 @@ package com.antisdvg.data.remote
 import com.google.gson.Gson
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
-import okhttp3.Request
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-/** One book offered by the free catalogue. */
+/** Where a catalogue row comes from. */
+enum class CatalogSource { GUTENBERG, WIKISOURCE }
+
+/** One book offered by a free catalogue. */
 data class CatalogBook(
-    val id: Int,
+    val id: String,
+    val source: CatalogSource,
     val title: String,
     val author: String,
     val language: String,
-    val epubUrl: String?,
-    val textUrl: String?
+    val format: String,
+    /** Direct file for Gutenberg; Wikisource is fetched page by page. */
+    val downloadUrl: String? = null,
+    /** Wikisource page title used to fetch the text. */
+    val pageTitle: String = ""
 ) {
-    val downloadUrl: String? get() = epubUrl ?: textUrl
-
-    /** Name used by the importer to detect the format; the URL itself is not enough. */
+    /** Name used by the importer to detect the format. */
     val fileName: String
-        get() = title.take(80).ifBlank { "book" } + if (epubUrl != null) ".epub" else ".txt"
+        get() = title.take(80)
+            .replace(Regex("[\\\\/:*?\"<>|]"), " ")
+            .trim()
+            .ifBlank { "book" } + "." + format.lowercase()
 }
 
 /**
@@ -44,7 +51,7 @@ object CatalogClient {
         val url = BASE.toHttpUrlOrNull()?.newBuilder()
             ?.addQueryParameter("search", query)
             ?.build() ?: error("bad catalogue url")
-        val request = Request.Builder()
+        val request = okhttp3.Request.Builder()
             .url(url)
             .header("User-Agent", "AntiSDVG/1.0 (personal reader)")
             .build()
@@ -57,7 +64,7 @@ object CatalogClient {
 
     /** Downloads a book file; false when the response is not a successful body. */
     fun download(url: String, target: File): Boolean {
-        val request = Request.Builder()
+        val request = okhttp3.Request.Builder()
             .url(url)
             .header("User-Agent", "AntiSDVG/1.0 (personal reader)")
             .build()
@@ -74,18 +81,21 @@ object CatalogClient {
         return page.results.mapNotNull { dto ->
             val title = dto.title.trim()
             if (title.isBlank()) return@mapNotNull null
+            val epub = dto.formats["application/epub+zip"]
+            val text = dto.formats.entries.firstOrNull { it.key.startsWith("text/plain") }?.value
+            if (epub == null && text == null) return@mapNotNull null
             CatalogBook(
-                id = dto.id,
+                id = "g${dto.id}",
+                source = CatalogSource.GUTENBERG,
                 title = title,
                 author = dto.authors.firstOrNull()?.name?.let(::authorName).orEmpty(),
                 language = languageName(dto.languages.firstOrNull()),
-                epubUrl = dto.formats["application/epub+zip"],
-                textUrl = dto.formats.entries
-                    .firstOrNull { it.key.startsWith("text/plain") }?.value
+                format = if (epub != null) "EPUB" else "TXT",
+                downloadUrl = epub ?: text
             )
         }
             // Gutenberg carries several files per title; keep one, and prefer EPUB.
-            .sortedByDescending { it.epubUrl != null }
+            .sortedByDescending { it.format == "EPUB" }
             .distinctBy { it.title.lowercase() + "|" + it.author.lowercase() }
     }
 

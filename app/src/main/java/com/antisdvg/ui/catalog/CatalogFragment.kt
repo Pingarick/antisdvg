@@ -13,6 +13,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.antisdvg.R
+import com.antisdvg.data.remote.CatalogSource
 import com.antisdvg.databinding.FragmentCatalogBinding
 import com.antisdvg.ui.AppViewModelFactory
 import com.antisdvg.ui.reader.ReaderActivity
@@ -42,6 +43,13 @@ class CatalogFragment : Fragment(R.layout.fragment_catalog) {
             viewModel.onQueryChanged(text?.toString().orEmpty())
         }
 
+        binding.catalogSourceWs.setOnClickListener {
+            viewModel.setSource(CatalogSource.WIKISOURCE)
+        }
+        binding.catalogSourceGb.setOnClickListener {
+            viewModel.setSource(CatalogSource.GUTENBERG)
+        }
+
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.state.collect { render(it) }
@@ -51,10 +59,13 @@ class CatalogFragment : Fragment(R.layout.fragment_catalog) {
 
     private fun render(state: CatalogViewModel.UiState) {
         adapter.submitList(state.items)
+        binding.catalogSourceWs.isChecked = state.source == CatalogSource.WIKISOURCE
+        binding.catalogSourceGb.isChecked = state.source == CatalogSource.GUTENBERG
         binding.catalogStatus.isVisible = state.error || state.loading || state.items.isEmpty()
         binding.catalogStatus.text = when {
             state.error -> getString(R.string.catalog_error)
             state.loading -> getString(R.string.catalog_loading)
+            state.items.isEmpty() && state.query.isBlank() -> getString(R.string.catalog_type_to_search)
             else -> getString(R.string.catalog_empty)
         }
     }

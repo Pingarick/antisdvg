@@ -8,6 +8,8 @@ import com.antisdvg.data.model.BookFormat
 import com.antisdvg.data.model.BookStatus
 import com.antisdvg.data.remote.CatalogBook
 import com.antisdvg.data.remote.CatalogClient
+import com.antisdvg.data.remote.CatalogSource
+import com.antisdvg.data.remote.WikisourceClient
 import com.antisdvg.data.repository.DataRepository
 import com.antisdvg.util.BookImporter
 import kotlinx.coroutines.Dispatchers
@@ -22,8 +24,9 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * Project Gutenberg catalogue: search, download, and hand the file to the same
- * importer the "add book" flow uses, so downloaded books are ordinary shelf books.
+ * Free catalogues: Russian Wikisource and Project Gutenberg. Downloading hands
+ * the file to the same importer the "add book" flow uses, so catalogue books
+ * are ordinary shelf books afterwards.
  */
 class CatalogViewModel(
     private val repo: DataRepository,
@@ -40,6 +43,7 @@ class CatalogViewModel(
 
     data class UiState(
         val query: String = "",
+        val source: CatalogSource = CatalogSource.WIKISOURCE,
         val loading: Boolean = false,
         val error: Boolean = false,
         val items: List<Item> = emptyList()
@@ -64,12 +68,24 @@ class CatalogViewModel(
         }
     }
 
+    fun setSource(source: CatalogSource) {
+        if (_state.value.source == source) return
+        _state.update { it.copy(source = source, items = emptyList()) }
+        search(_state.value.query)
+    }
+
     fun search(query: String) {
         searchJob?.cancel()
+        val source = _state.value.source
         _state.update { it.copy(loading = true, error = false) }
         viewModelScope.launch {
             val outcome = withContext(Dispatchers.IO) {
-                runCatching { CatalogClient.search(query.trim()) }
+                runCatching {
+                    when (source) {
+                        CatalogSource.WIKISOURCE -> WikisourceClient.search(query.trim())
+                        CatalogSource.GUTENBERG -> CatalogClient.search(query.trim())
+                    }
+                }
             }
             outcome.onSuccess { books ->
                 _state.update {
@@ -87,15 +103,15 @@ class CatalogViewModel(
         setState(book.id, DownloadState.DOWNLOADING)
 
         viewModelScope.launch {
-            val file = withContext(Dispatchers.IO) { fetch(book) }
-            if (file == null) {
+            val fetched = withContext(Dispatchers.IO) { fetch(book) }
+            if (fetched == null) {
                 setState(book.id, DownloadState.FAILED)
                 return@launch
             }
             val imported = withContext(Dispatchers.IO) {
-                runCatching { BookImporter.import(app, file, book.fileName) }.getOrNull()
+                runCatching { BookImporter.import(app, fetched.file, book.fileName) }.getOrNull()
             }
-            file.delete()
+            fetched.file.delete()
             if (imported == null) {
                 setState(book.id, DownloadState.FAILED)
                 return@launch
@@ -104,7 +120,7 @@ class CatalogViewModel(
                 repo.addBook(
                     Book(
                         title = imported.title,
-                        author = imported.author,
+                        author = fetched.author.ifBlank { imported.author },
                         coverUrl = if (imported.coverPath.isBlank()) "" else "file://${imported.coverPath}",
                         totalPages = imported.estimatedPages,
                         currentPage = 0,
@@ -119,15 +135,26 @@ class CatalogViewModel(
         }
     }
 
-    private fun fetch(book: CatalogBook): File? {
-        val url = book.downloadUrl ?: return null
-        val extension = if (book.epubUrl != null) "epub" else "txt"
-        val target = File(app.cacheDir, "catalog-${book.id}.$extension")
-        val ok = runCatching { CatalogClient.download(url, target) }.getOrDefault(false)
-        return target.takeIf { ok }
+    private data class Fetched(val file: File, val author: String = "")
+
+    private fun fetch(book: CatalogBook): Fetched? {
+        return when (book.source) {
+            CatalogSource.WIKISOURCE -> {
+                val page = WikisourceClient.fetch(book.pageTitle) ?: return null
+                val file = File(app.cacheDir, "catalog-${book.id.hashCode()}.txt")
+                file.writeText(page.text)
+                Fetched(file, page.author)
+            }
+            CatalogSource.GUTENBERG -> {
+                val url = book.downloadUrl ?: return null
+                val extension = book.format.lowercase()
+                val target = File(app.cacheDir, "catalog-${book.id.hashCode()}.$extension")
+                if (CatalogClient.download(url, target)) Fetched(target) else null
+            }
+        }
     }
 
-    private fun setState(id: Int, state: DownloadState, bookId: Long = 0L) {
+    private fun setState(id: String, state: DownloadState, bookId: Long = 0L) {
         _state.update { ui ->
             ui.copy(
                 items = ui.items.map {
