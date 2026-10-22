@@ -89,7 +89,7 @@ class WeekChartView @JvmOverloads constructor(
         val n = week.size
         val gap = dp(6f)
         val barWidth = (width - gap * (n - 1)) / n.toFloat()
-        val max = week.maxOfOrNull { it.pages }?.coerceAtLeast(1) ?: 1
+        val max = week.maxOfOrNull { it.minutes }?.coerceAtLeast(1) ?: 1
         // Reserve a band below the axis for the period/slice label.
         val baseline = height - dp(4f) - labelPaint.textSize
         val topLimit = dp(6f) + labelPaint.textSize
