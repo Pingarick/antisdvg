@@ -245,7 +245,7 @@
     <!-- Free catalogue (Project Gutenberg) -->
     <string name="catalog_title">Каталог</string>
     <string name="catalog_back">Назад</string>
-    <string name="catalog_subtitle">Свободные книги: Викитека и Gutenberg</string>
+    <string name="catalog_subtitle">Свободные книги: Викитека, Gutenberg и Флибуста</string>
     <string name="catalog_source_ws">Викитека</string>
     <string name="catalog_source_gb">Gutenberg</string>
     <string name="catalog_search_hint">Название или автор</string>
@@ -264,6 +264,11 @@
         <item quantity="many">%1$d книг</item>
         <item quantity="other">%1$d книг</item>
     </plurals>
+      <string name="source_flibusta">Флибуста</string>
+    <string name="btn_download">Скачать</string>
+    <string name="btn_downloading">Скачиваю...</string>
+    <string name="btn_read">Читать</string>
+    <string name="btn_retry">Повторить</string>
     <string name="empty_library">Пока нет книг. Добавь первую книгу!</string>
     <string name="empty_library_sub">Начни с одной книги — читай страницы, пересказывай и зарабатывай время на отдых.</string>
     <string name="empty_library_add">Добавить книгу</string>
@@ -351,6 +356,12 @@
     <string name="reader_too_short_title">Пока мало</string>
     <string name="reader_too_short">Меньше минуты чтения — начислять нечего. Почитай подольше.</string>
     <string name="reader_summary_title">Итог чтения</string>
+    <string name="reader_range_title">Сколько страниц засчитать?</string>
+    <string name="reader_range_continue">Дальше</string>
+    <string name="reader_range_from">С страницы</string>
+    <string name="reader_range_to">По страницу</string>
+    <string name="reader_range_total">Всего в книге: %1$d стр.</string>
+    <string name="reader_range_error">Диапазон: от 1 до %1$d, начало не больше конца.</string>
     <string name="reader_summary_page">Прочитано стр. %1$d за %2$d мин.</string>
     <string name="reader_summary_pages">Прочитано стр. %1$d–%2$d (%3$d стр.) за %4$d мин.</string>
     <string name="reader_summary_ask">В книге %1$d стр. Вопросов в тесте: %2$d — начислим %3$d мин.\n\nЕсли выйти, сессия отложится: тест пройдёшь при следующем открытии книги.</string>

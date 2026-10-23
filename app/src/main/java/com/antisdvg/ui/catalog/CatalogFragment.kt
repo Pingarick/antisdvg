@@ -19,7 +19,7 @@ import com.antisdvg.ui.AppViewModelFactory
 import com.antisdvg.ui.reader.ReaderActivity
 import kotlinx.coroutines.launch
 
-/** The free catalogue: search Project Gutenberg and put books on the shelf. */
+/** The free catalogue: search Project Gutenberg, Wikisource and Flibusta. */
 class CatalogFragment : Fragment(R.layout.fragment_catalog) {
 
     private var _binding: FragmentCatalogBinding? = null
@@ -43,11 +43,15 @@ class CatalogFragment : Fragment(R.layout.fragment_catalog) {
             viewModel.onQueryChanged(text?.toString().orEmpty())
         }
 
+        // Обработчики нажатий на чипы источников
         binding.catalogSourceWs.setOnClickListener {
             viewModel.setSource(CatalogSource.WIKISOURCE)
         }
         binding.catalogSourceGb.setOnClickListener {
             viewModel.setSource(CatalogSource.GUTENBERG)
+        }
+        binding.catalogSourceFb.setOnClickListener {
+            viewModel.setSource(CatalogSource.FLIBUSTA)
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -59,8 +63,12 @@ class CatalogFragment : Fragment(R.layout.fragment_catalog) {
 
     private fun render(state: CatalogViewModel.UiState) {
         adapter.submitList(state.items)
+        
+        // Обновляем состояние чипов (какой выбран)
         binding.catalogSourceWs.isChecked = state.source == CatalogSource.WIKISOURCE
         binding.catalogSourceGb.isChecked = state.source == CatalogSource.GUTENBERG
+        binding.catalogSourceFb.isChecked = state.source == CatalogSource.FLIBUSTA
+
         binding.catalogStatus.isVisible = state.error || state.loading || state.items.isEmpty()
         binding.catalogStatus.text = when {
             state.error -> getString(R.string.catalog_error)

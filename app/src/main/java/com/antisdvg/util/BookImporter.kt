@@ -42,9 +42,14 @@ object BookImporter {
             ?: throw UnsupportedFormatException()
 
         val stash = newStash(context)
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            stash.outputStream().use { output -> input.copyTo(output) }
-        } ?: return null
+        val input = context.contentResolver.openInputStream(uri)
+        if (input == null) {
+            stash.delete()
+            return null
+        }
+        input.use { stream ->
+            stash.outputStream().use { output -> stream.copyTo(output) }
+        }
 
         return importStashed(context, stash, displayName, kind)
     }
@@ -74,37 +79,48 @@ object BookImporter {
         kind: Kind
     ): Imported? {
         val booksDir = File(context.filesDir, "books").apply { mkdirs() }
-        val (file, finalKind) = when (kind) {
-            Kind.ZIP -> {
-                // A plain zip may still be an EPUB in disguise: some libraries
-                // ship .epub renamed, and a few ship .zip holding one.
-                val extracted = extractFb2(stash, booksDir)
-                if (extracted != null) {
-                    stash.delete()
-                    extracted to "FB2"
-                } else if (looksLikeEpub(stash)) {
-                    rename(stash, "epub") to "EPUB"
-                } else {
-                    throw UnsupportedFormatException()
+        var produced: File? = null
+        var coverPath = ""
+        try {
+            val (file, finalKind) = when (kind) {
+                Kind.ZIP -> {
+                    // A plain zip may still be an EPUB in disguise: some libraries
+                    // ship .epub renamed, and a few ship .zip holding one.
+                    val extracted = extractFb2(stash, booksDir)
+                    if (extracted != null) {
+                        stash.delete()
+                        extracted to "FB2"
+                    } else if (looksLikeEpub(stash)) {
+                        rename(stash, "epub") to "EPUB"
+                    } else {
+                        throw UnsupportedFormatException()
+                    }
                 }
+                Kind.FB2 -> rename(stash, "fb2") to "FB2"
+                Kind.TXT -> rename(stash, "txt") to "TXT"
+                Kind.EPUB -> rename(stash, "epub") to "EPUB"
             }
-            Kind.FB2 -> rename(stash, "fb2") to "FB2"
-            Kind.TXT -> rename(stash, "txt") to "TXT"
-            Kind.EPUB -> rename(stash, "epub") to "EPUB"
-        }
+            produced = file
 
-        val parsed = file.inputStream().use { stream ->
-            BookText.parse(stream, finalKind, displayName.substringBeforeLast('.'))
+            val parsed = file.inputStream().use { stream ->
+                BookText.parse(stream, finalKind, displayName.substringBeforeLast('.'))
+            }
+            coverPath = writeCover(context, parsed.coverDataUri)
+            return Imported(
+                filePath = file.absolutePath,
+                kind = finalKind,
+                title = parsed.title.ifBlank { displayName.substringBeforeLast('.') },
+                author = parsed.author,
+                coverPath = coverPath,
+                estimatedPages = parsed.estimatedPages
+            )
+        } catch (e: Throwable) {
+            // A failed import must not leave half-parsed books or covers behind.
+            produced?.delete()
+            if (coverPath.isNotBlank()) File(coverPath).delete()
+            stash.delete()
+            throw e
         }
-        val coverPath = writeCover(context, parsed.coverDataUri)
-        return Imported(
-            filePath = file.absolutePath,
-            kind = finalKind,
-            title = parsed.title.ifBlank { displayName.substringBeforeLast('.') },
-            author = parsed.author,
-            coverPath = coverPath,
-            estimatedPages = parsed.estimatedPages
-        )
     }
 
     /** Pulls the first `.fb2` entry out of an archive into app storage. */

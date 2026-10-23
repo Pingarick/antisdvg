@@ -7,7 +7,7 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 /** Where a catalogue row comes from. */
-enum class CatalogSource { GUTENBERG, WIKISOURCE }
+enum class CatalogSource { GUTENBERG, WIKISOURCE, FLIBUSTA }
 
 /** One book offered by a free catalogue. */
 data class CatalogBook(
@@ -68,12 +68,26 @@ object CatalogClient {
             .url(url)
             .header("User-Agent", "AntiSDVG/1.0 (personal reader)")
             .build()
-        http.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return false
-            val body = response.body ?: return false
-            target.outputStream().use { out -> body.byteStream().copyTo(out) }
-            return target.length() > 0
+        val ok = try {
+            http.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    false
+                } else {
+                    val body = response.body
+                    if (body == null) {
+                        false
+                    } else {
+                        target.outputStream().use { out -> body.byteStream().copyTo(out) }
+                        target.length() > 0
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            false
         }
+        // A half-written file is worse than none: it would be imported as a book.
+        if (!ok) target.delete()
+        return ok
     }
 
     internal fun parse(json: String): List<CatalogBook> {

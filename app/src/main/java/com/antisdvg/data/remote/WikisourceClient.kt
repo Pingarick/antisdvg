@@ -27,16 +27,66 @@ object WikisourceClient {
 
     /** Throws on network failure. */
     fun search(query: String): List<CatalogBook> {
-        val url = API.toHttpUrlOrNull()?.newBuilder()
-            ?.addQueryParameter("action", "query")
-            ?.addQueryParameter("list", "search")
-            ?.addQueryParameter("srsearch", query)
-            ?.addQueryParameter("srnamespace", "0")
-            ?.addQueryParameter("srlimit", "20")
-            ?.addQueryParameter("format", "json")
-            ?.addQueryParameter("formatversion", "2")
-            ?.build() ?: error("bad wikisource url")
-        return parseSearch(request(url))
+        val q = query.trim()
+        if (q.isBlank()) return emptyList()
+        // Titles first: somebody typing a book name wants the book, not a mention
+        // of it in an encyclopedia article.
+        val byTitle = runCatching { prefixSearch(q) }
+        val byText = runCatching { textSearch(q) }
+        // Both requests failing means the service is down; one empty answer is
+        // just "nothing found" and must not be reported as an outage.
+        if (byTitle.isFailure && byText.isFailure) {
+            throw byText.exceptionOrNull() ?: IllegalStateException("wikisource unavailable")
+        }
+        return (byTitle.getOrDefault(emptyList()) + byText.getOrDefault(emptyList()))
+            .mapNotNull(::toBook)
+            .distinctBy { it.pageTitle }
+            .take(30)
+    }
+
+    private fun prefixSearch(query: String): List<String> {
+        val url = api()
+            .addQueryParameter("action", "query")
+            .addQueryParameter("list", "prefixsearch")
+            .addQueryParameter("pssearch", query)
+            .addQueryParameter("pslimit", "20")
+            .build()
+        val dto = gson.fromJson(request(url), PrefixDto::class.java)
+        return dto?.query?.prefixsearch.orEmpty().map { it.title }
+    }
+
+    private fun textSearch(query: String): List<String> {
+        val url = api()
+            .addQueryParameter("action", "query")
+            .addQueryParameter("list", "search")
+            .addQueryParameter("srsearch", query)
+            .addQueryParameter("srnamespace", "0")
+            .addQueryParameter("srlimit", "20")
+            .build()
+        val dto = gson.fromJson(request(url), SearchDto::class.java)
+        return dto?.query?.search.orEmpty().map { it.title }
+    }
+
+    /**
+     * Wikisource is a whole library of reference material, not only fiction:
+     * encyclopedia entries, laws and "Лентапедия" biographies would otherwise
+     * fill the catalogue with things nobody wants to read as a book.
+     */
+    private fun toBook(titleRaw: String): CatalogBook? {
+        val title = titleRaw.trim()
+        if (title.isBlank()) return null
+        // Chapter subpages are pieces of a work, not works.
+        if (title.contains('/')) return null
+        if (NotLiterature.any { title.startsWith(it) }) return null
+        return CatalogBook(
+            id = "ws:$title",
+            source = CatalogSource.WIKISOURCE,
+            title = title,
+            author = "",
+            language = "рус",
+            format = "TXT",
+            pageTitle = title
+        )
     }
 
     /** Fetches the page text; joins chapter subpages when the page is only a table of contents. */
@@ -63,20 +113,31 @@ object WikisourceClient {
     internal fun parseSearch(json: String): List<CatalogBook> {
         val dto = gson.fromJson(json, SearchDto::class.java) ?: return emptyList()
         val hits = dto.query?.search.orEmpty()
-        return hits.mapNotNull { hit ->
-            val title = hit.title.trim()
-            if (title.isBlank()) return@mapNotNull null
-            CatalogBook(
-                id = "ws:$title",
-                source = CatalogSource.WIKISOURCE,
-                title = title,
-                author = "",
-                language = "рус",
-                format = "TXT",
-                pageTitle = title
-            )
-        }.distinctBy { it.pageTitle }
+        return hits.mapNotNull { hit -> toBook(hit.title) }.distinctBy { it.pageTitle }
     }
+
+    private fun api(): okhttp3.HttpUrl.Builder =
+        API.toHttpUrlOrNull()?.newBuilder()
+            ?.addQueryParameter("format", "json")
+            ?.addQueryParameter("formatversion", "2")
+            ?: error("bad wikisource url")
+
+    /** Pages that share the main namespace but are not literature. */
+    private val NotLiterature = listOf(
+        "Лентапедия/",
+        "ЭСБЕ/",
+        "РБС/",
+        "ПБЭ/",
+        "ЕЭБЕ/",
+        "ЕЭБЕ ",
+        "Федеральный список",
+        "Указ Президента",
+        "Налоговый кодекс",
+        "Гражданский кодекс",
+        "Уголовный кодекс",
+        "Конституция",
+        "Пути сообщения"
+    )
 
     /** Wikimedia pages start with a template that renders "автор Имя Фамилия". */
     internal fun authorOf(text: String): String =
@@ -158,6 +219,9 @@ object WikisourceClient {
     private data class SearchDto(val query: SearchQuery? = null)
     private data class SearchQuery(val search: List<Hit> = emptyList())
     private data class Hit(val title: String = "")
+
+    private data class PrefixDto(val query: PrefixQuery? = null)
+    private data class PrefixQuery(val prefixsearch: List<Hit> = emptyList())
 
     private data class ParseDto(val parse: ParseBody? = null)
     private data class ParseBody(val text: String = "")

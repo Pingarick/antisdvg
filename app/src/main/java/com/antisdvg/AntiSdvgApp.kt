@@ -8,6 +8,8 @@ import com.antisdvg.data.model.BlockedApp
 import com.antisdvg.data.model.EmergencyTokens
 import com.antisdvg.data.model.UserStats
 import com.antisdvg.data.model.Wallet
+import com.antisdvg.util.BookStorage
+import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -34,6 +36,14 @@ class AntiSdvgApp : Application() {
                 dao.upsertBlockedApp(BlockedApp("com.google.android.youtube", "YouTube"))
                 dao.upsertBlockedApp(BlockedApp("com.zhiliaoapp.musically", "TikTok"))
             }
+
+            // Remove book files nothing points at any more.
+            BookStorage.sweep(
+                booksDir = File(context.filesDir, "books"),
+                coversDir = File(context.filesDir, "covers"),
+                cacheDir = context.cacheDir,
+                books = dao.allBooks()
+            )
         }
     }
 }

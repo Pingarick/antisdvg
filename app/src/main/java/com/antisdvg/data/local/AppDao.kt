@@ -32,6 +32,9 @@ interface AppDao {
     @Query("SELECT * FROM books WHERE id = :id")
     suspend fun getBook(id: Long): Book?
 
+    @Query("SELECT * FROM books")
+    suspend fun allBooks(): List<Book>
+
     @Query("SELECT * FROM books WHERE status = :status LIMIT 1")
     suspend fun findActive(status: String = BookStatus.ACTIVE): Book?
 

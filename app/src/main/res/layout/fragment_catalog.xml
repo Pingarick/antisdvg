@@ -54,7 +54,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="@dimen/screen_padding_h"
         android:layout_marginTop="@dimen/space_sm"
-        app:singleLine="true"
+        app:singleLine="false"
         app:singleSelection="true">
 
         <com.google.android.material.chip.Chip
@@ -73,6 +73,14 @@
             android:layout_height="wrap_content"
             android:checkable="true"
             android:text="@string/catalog_source_gb" />
+        <com.google.android.material.chip.Chip
+            android:id="@+id/catalog_source_fb"
+            style="@style/Widget.MaterialComponents.Chip.Choice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checkable="true"
+            android:text="@string/source_flibusta" />
+
     </com.google.android.material.chip.ChipGroup>
 
     <com.google.android.material.textfield.TextInputLayout
