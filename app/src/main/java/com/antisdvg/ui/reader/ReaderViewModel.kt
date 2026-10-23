@@ -125,6 +125,15 @@ class ReaderViewModel(
      */
     private var pending: PendingSession? = null
 
+    /**
+     * The page range the reader chose before the test. It overrides the range
+     * detected from the screens shown, so the user can correct an automatic
+     * count; [rangeText] is the text of exactly those pages.
+     */
+    private var rangeFrom: Int? = null
+    private var rangeTo: Int? = null
+    private var rangeText: String = ""
+
     /** Last progress written to the database, so autosave never writes twice. */
     private var lastPersisted = -1.0
 
@@ -191,6 +200,28 @@ class ReaderViewModel(
     /** Back to reading without ending the session (dialog cancelled). */
     fun unfreeze() {
         frozen = null
+        clearRange()
+    }
+
+    /** The reader corrected the range the session is judged by. */
+    fun setRange(fromPage: Int, toPage: Int) {
+        val total = totalPages().coerceAtLeast(1)
+        val from = fromPage.coerceIn(1, total)
+        val to = toPage.coerceIn(from, total)
+        rangeFrom = from
+        rangeTo = to
+        rangeText = ""
+    }
+
+    /** Text of the pages in the chosen range, fetched from the layout. */
+    fun noteRangeText(text: String) {
+        rangeText = text
+    }
+
+    fun clearRange() {
+        rangeFrom = null
+        rangeTo = null
+        rangeText = ""
     }
 
     /**
@@ -298,7 +329,12 @@ class ReaderViewModel(
     /** 1-based page equivalent of a 0..1 progress on the current book. */
     fun pageAt(progress: Double): Int = ReaderProgress.pageAt(progress, totalPages())
 
-    fun summary(): SessionSummary = frozen ?: computeSummary()
+    fun summary(): SessionSummary {
+        val base = frozen ?: computeSummary()
+        val from = rangeFrom ?: return base
+        val to = rangeTo ?: return base
+        return base.copy(fromPage = from, toPage = to, pagesRead = (to - from + 1).coerceAtLeast(1))
+    }
 
     private fun computeSummary(): SessionSummary {
         // A postponed session is described by what it kept, not by where the
@@ -359,12 +395,13 @@ class ReaderViewModel(
      * the layout reported for a live one, or the progress range in ribbon mode.
      */
     fun passageText(): String =
-        pending?.excerpt?.takeIf { it.isNotBlank() }
+        rangeText.takeIf { it.isNotBlank() }
+            ?: pending?.excerpt?.takeIf { it.isNotBlank() }
             ?: excerpt?.text?.takeIf { it.isNotBlank() }
             ?: fallbackExcerpt()
 
     /** How many pages the session is worth testing. */
-    fun readPages(): Int = pending?.pages ?: excerpt?.pages ?: summary().pagesRead
+    fun readPages(): Int = summary().pagesRead
 
     /** How many questions that many pages deserve. */
     fun plannedQuestions(): Int = ReaderProgress.questionsForPages(readPages())
@@ -414,6 +451,7 @@ class ReaderViewModel(
 
     /** Switches grading to a postponed session; its test is built from its pages. */
     fun beginPending(claim: PendingSession) {
+        clearRange()
         pending = claim
         questions = emptyList()
     }
@@ -433,7 +471,9 @@ class ReaderViewModel(
         val book = state.book ?: return null
         if (state.activeSeconds < ReaderProgress.MIN_SESSION_SECONDS) return null
         val summary = summary()
-        val text = excerpt?.text?.takeIf { it.isNotBlank() } ?: fallbackExcerpt()
+        val text = rangeText.takeIf { it.isNotBlank() }
+            ?: excerpt?.text?.takeIf { it.isNotBlank() }
+            ?: fallbackExcerpt()
         if (text.isBlank()) return null
         return PendingSession(
             bookId = book.id,
@@ -504,12 +544,15 @@ class ReaderViewModel(
         // in the same write, or "the end of the book" would be judged by the
         // rough estimate and the book would never be marked as finished.
         val total = totalPages()
-        val endPage = maxOf(summary.toPage, book.currentPage)
+        // The chosen range describes the session (and its reward), not the
+        // bookmark: editing it must not teleport the reader forward.
+        val position = maxOf(currentPage(), book.currentPage)
         repo.recordSession(
             book = book.copy(progress = state.progress, totalPages = total),
             startPage = summary.fromPage,
-            endPage = endPage,
+            endPage = summary.toPage,
             pagesRead = summary.pagesRead,
+            positionPage = position,
             taskType = VerifyResult.TASK_QUIZ,
             earnedMinutes = earned
         )

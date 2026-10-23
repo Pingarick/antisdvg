@@ -157,12 +157,14 @@ class DataRepository(
         endPage: Int,
         taskType: String,
         earnedMinutes: Int,
-        pagesRead: Int = endPage - startPage + 1
+        pagesRead: Int = endPage - startPage + 1,
+        /** Where the book itself advances; defaults to the reported end page. */
+        positionPage: Int = endPage
     ) {
         val pagesThisSession = pagesRead.coerceAtLeast(1)
 
         // 1. Advance the book.
-        val nextPage = endPage.coerceAtMost(book.totalPages)
+        val nextPage = positionPage.coerceAtMost(book.totalPages)
         val finished = nextPage >= book.totalPages
         val wasFinished = book.status == BookStatus.READ
         dao.updateBook(

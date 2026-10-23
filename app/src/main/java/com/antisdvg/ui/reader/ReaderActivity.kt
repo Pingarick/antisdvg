@@ -863,6 +863,19 @@ class ReaderActivity : AppCompatActivity() {
                   .join('\n\n');
               }
 
+              // Text of any page range: the user may correct what the session
+              // counted, and the test must then ask about the corrected pages.
+              // Empty in ribbon mode, where pages are not known.
+              function rangeText(fromPage, toPage) {
+                if (!paged) { return ''; }
+                var from = fromPage - 1;
+                var to = toPage - 1;
+                return contentBlocks()
+                  .filter(function (b) { return b.col >= from && b.col <= to; })
+                  .map(function (b) { return b.text; })
+                  .join('\n\n');
+              }
+
               function report() {
                 markVisited();
                 ReaderBridge.onProgress(ratio());
@@ -1189,6 +1202,7 @@ class ReaderActivity : AppCompatActivity() {
                   if (n === 0) { return null; }
                   return { text: excerptText(), fromPage: lo + 1, toPage: hi + 1, pages: n };
                 },
+                rangeText: rangeText,
                 state: function () {
                   return { paged: paged, total: total, cur: cur, pageW: pageW, ratio: ratio() };
                 }
@@ -1747,8 +1761,65 @@ class ReaderActivity : AppCompatActivity() {
                 viewModel.noteExcerpt(excerpt)
             }
             viewModel.freezeSession()
-            prepareQuiz(withProgress = true) { count -> showSummary(count) }
+            // Ribbon mode has no pages of its own: there is no range to correct,
+            // and inventing one would let the reward describe pages never laid out.
+            if (excerpt == null || viewModel.state.value.mode != ReaderMode.PAGED) {
+                prepareQuiz(withProgress = true) { count -> showSummary(count) }
+                return@pullExcerpt
+            }
+            val auto = viewModel.summary()
+            // Let the reader correct the automatic range before the test is
+            // built: the questions and the reward both follow the chosen pages.
+            askRange(auto.fromPage, auto.toPage, viewModel.totalPages()) { from, to ->
+                viewModel.setRange(from, to)
+                pullRangeText(from, to) { text ->
+                    if (text.isNotBlank()) viewModel.noteRangeText(text)
+                    prepareQuiz(withProgress = true) { count -> showSummary(count) }
+                }
+            }
         }
+    }
+
+    /**
+     * The automatic range is a guess after all: pages can be skipped, or the
+     * layout may re-count them. The reader confirms or corrects it before the
+     * test, and that range is what the test and the minutes use.
+     */
+    private fun askRange(from: Int, to: Int, total: Int, onConfirm: (Int, Int) -> Unit) {
+        val view = layoutInflater.inflate(R.layout.dialog_reader_range, null)
+        val fromEdit = view.findViewById<EditText>(R.id.range_from)
+        val toEdit = view.findViewById<EditText>(R.id.range_to)
+        val hint = view.findViewById<TextView>(R.id.range_total)
+
+        fromEdit.setText(from.toString())
+        toEdit.setText(to.toString())
+        hint.text = getString(R.string.reader_range_total, total)
+
+        val dialog = screenDialog {
+            setTitle(R.string.reader_range_title)
+            setView(view)
+            setCancelable(false)
+            setPositiveButton(R.string.reader_range_continue, null)
+            setNegativeButton(R.string.reader_stay) { _, _ -> viewModel.unfreeze() }
+        }
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val start = fromEdit.text.toString().toIntOrNull()
+            val end = toEdit.text.toString().toIntOrNull()
+            if (start == null || end == null || start < 1 || end > total || start > end) {
+                hint.text = getString(R.string.reader_range_error, total)
+                return@setOnClickListener
+            }
+            dialog.dismiss()
+            onConfirm(start, end)
+        }
+    }
+
+    /** Text of the pages the reader picked, taken from the live layout. */
+    private fun pullRangeText(from: Int, to: Int, onDone: (String) -> Unit) {
+        binding.readerWeb.evaluateJavascript(
+            "(function(){try{return JSON.stringify(Reader.rangeText($from,$to));}" +
+                "catch(err){return null;}})()"
+        ) { raw -> onDone((jsJson(raw) as? String).orEmpty()) }
     }
 
     /**
