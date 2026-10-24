@@ -68,11 +68,20 @@ app/src/main/java/com/antisdvg/
 
 ## Сборка
 
-Проект использует **Gradle без gradlew-скриптов** (бинарь Gradle 8.5 + JDK 21, см. контекст проекта):
+Нужен JDK 21; wrapper уже в репозитории (`gradlew.bat`).
+
+Короткая команда — собрать и положить APK в одну понятную папку `release\`:
 
 ```bash
-gradle :app:assembleDebug
-# APK → app/build/outputs/apk/debug/app-debug.apk
+.\gradlew.bat :app:apk
+# release\Анти-СДВГ.apk
+# release\Анти-СДВГ-ГГГГ-ММ-ДД.apk
+```
+
+Обычная сборка по-прежнему кладёт APK в `app\build\outputs\apk\debug\`:
+
+```bash
+.\gradlew.bat :app:assembleDebug
 ```
 
 Ключевые настройки:
@@ -83,7 +92,7 @@ gradle :app:assembleDebug
 
 ## Запуск на устройстве
 
-1. Собрать и установить `app-debug.apk`.
+1. Собрать и установить `release\Анти-СДВГ.apk` (или свежий APK из `app\build\outputs\apk\debug\`).
 2. В приложении: включить переключатель **«Блокировка»**, дать разрешения:
    - **Спец. возможности → «Установленные сервисы» → Anti-SDVG** (сам блокер),
    - **«Поверх других приложений»** (оверлей блокировки) — через кнопку в настройках.

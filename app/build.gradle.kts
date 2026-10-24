@@ -1,3 +1,4 @@
+import java.io.File
 import java.time.LocalDate
 
 import java.util.Properties
@@ -148,4 +149,34 @@ dependencies {
     testImplementation("org.json:json:20231013")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+}
+
+/**
+ * The installable artefact always lives in one place: `release/` in the project
+ * root. `gradlew :app:apk` builds the debug APK and copies it there twice — a
+ * stable name and a dated snapshot, so an older build is never overwritten
+ * without a trace.
+ */
+val apkOutputDir = layout.buildDirectory.dir("outputs/apk/debug")
+val apkReleaseDir = rootProject.layout.projectDirectory.dir("release")
+val apkBaseName = "Анти-СДВГ"
+
+tasks.register("apk") {
+    group = "build"
+    description = "Builds the debug APK and copies it to release/."
+    dependsOn("assembleDebug")
+
+    doLast {
+        val builtDir = apkOutputDir.get().asFile
+        val built = builtDir.listFiles { file -> file.isFile && file.extension == "apk" }
+            ?.maxByOrNull { it.lastModified() }
+            ?: throw GradleException("No APK in ${builtDir.absolutePath}")
+        val targetDir = apkReleaseDir.asFile.apply { mkdirs() }
+        val stable = File(targetDir, "$apkBaseName.apk")
+        val dated = File(targetDir, "$apkBaseName-${LocalDate.now()}.apk")
+        built.copyTo(stable, overwrite = true)
+        built.copyTo(dated, overwrite = true)
+        logger.lifecycle("APK: ${stable.absolutePath}")
+        logger.lifecycle("APK: ${dated.absolutePath}")
+    }
 }
