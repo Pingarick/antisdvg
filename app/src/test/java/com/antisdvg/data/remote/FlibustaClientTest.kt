@@ -27,4 +27,42 @@ class FlibustaClientTest {
     fun `blank query produces no requests`() {
         assertTrue(FlibustaClient.searchVariants("   ").isEmpty())
     }
+
+    @Test
+    fun `merge keeps one copy of a book found in several case variants`() {
+        val lower = listOf(
+            CatalogBook("flibusta:1", CatalogSource.FLIBUSTA, "Крестный отец", "Пьюзо Марио", "рус", "FB2", "https://flibusta.is/b/1/fb2"),
+            CatalogBook("flibusta:2", CatalogSource.FLIBUSTA, "Крестный отец", "Пьюзо Марио", "рус", "FB2", "https://flibusta.is/b/2/fb2")
+        )
+        val upper = listOf(
+            CatalogBook("flibusta:1", CatalogSource.FLIBUSTA, "Крестный отец", "Пьюзо Марио", "рус", "FB2", "https://flibusta.is/b/1/fb2"),
+            CatalogBook("flibusta:3", CatalogSource.FLIBUSTA, "Крестный отец [The Godfather]", "Пьюзо Марио", "рус", "FB2", "https://flibusta.is/b/3/fb2")
+        )
+
+        val merged = FlibustaClient.mergeResults(listOf(lower, upper))
+
+        assertEquals(
+            listOf(
+                "https://flibusta.is/b/1/fb2",
+                "https://flibusta.is/b/2/fb2",
+                "https://flibusta.is/b/3/fb2"
+            ),
+            merged.map { it.downloadUrl }
+        )
+    }
+
+    @Test
+    fun `merge does not depend on the input case`() {
+        val lowerCase = listOf(
+            CatalogBook("flibusta:1", CatalogSource.FLIBUSTA, "Сицилиец", "Пьюзо Марио", "рус", "FB2", "https://flibusta.is/b/9/fb2")
+        )
+        val upperCase = listOf(
+            CatalogBook("flibusta:1", CatalogSource.FLIBUSTA, "Сицилиец", "Пьюзо Марио", "рус", "FB2", "https://flibusta.is/b/9/fb2")
+        )
+
+        assertEquals(
+            FlibustaClient.mergeResults(listOf(lowerCase, upperCase)),
+            FlibustaClient.mergeResults(listOf(upperCase, lowerCase))
+        )
+    }
 }

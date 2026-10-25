@@ -50,11 +50,17 @@ object FlibustaClient {
             throw attempts.first().exceptionOrNull() ?: IllegalStateException("Flibusta unavailable")
         }
 
+        return@coroutineScope mergeResults(attempts.mapNotNull { it.getOrNull() })
+    }
+
+    /**
+     * Merges the answers of the case variants into one list: the same book
+     * found through "крёстный" and "Крёстный" appears once, different editions
+     * (different file links) all stay.
+     */
+    internal fun mergeResults(results: List<List<CatalogBook>>): List<CatalogBook> {
         val seen = HashSet<String>()
-        attempts
-            .mapNotNull { it.getOrNull() }
-            .flatten()
-            .filter { seen.add(it.downloadUrl ?: it.id) }
+        return results.flatten().filter { seen.add(it.downloadUrl ?: it.id) }
     }
 
     internal fun searchVariants(query: String): List<String> {
