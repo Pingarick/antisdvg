@@ -72,6 +72,7 @@ class CatalogFragment : Fragment(R.layout.fragment_catalog) {
         binding.catalogStatus.isVisible = state.error || state.loading || state.items.isEmpty()
         binding.catalogStatus.text = when {
             state.error -> getString(R.string.catalog_error)
+            state.loading && state.slow -> getString(R.string.catalog_slow)
             state.loading -> getString(R.string.catalog_loading)
             state.items.isEmpty() && state.query.isBlank() -> getString(R.string.catalog_type_to_search)
             else -> getString(R.string.catalog_empty)

@@ -256,6 +256,7 @@
     <string name="catalog_empty">Ничего не нашлось</string>
     <string name="catalog_type_to_search">Введи название книги или автора</string>
     <string name="catalog_loading">Ищу…</string>
+    <string name="catalog_slow">Ищу… Сервер отвечает медленно, жду.</string>
     <string name="catalog_error">Каталог недоступен. Проверь интернет и попробуй ещё раз.</string>
     <string name="library_reading_line">Сейчас читаю</string>
     <plurals name="book_count">
@@ -265,10 +266,6 @@
         <item quantity="other">%1$d книг</item>
     </plurals>
       <string name="source_flibusta">Флибуста</string>
-    <string name="btn_download">Скачать</string>
-    <string name="btn_downloading">Скачиваю...</string>
-    <string name="btn_read">Читать</string>
-    <string name="btn_retry">Повторить</string>
     <string name="empty_library">Пока нет книг. Добавь первую книгу!</string>
     <string name="empty_library_sub">Начни с одной книги — читай страницы, пересказывай и зарабатывай время на отдых.</string>
     <string name="empty_library_add">Добавить книгу</string>

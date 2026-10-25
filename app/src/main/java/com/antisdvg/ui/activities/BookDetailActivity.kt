@@ -171,6 +171,9 @@ class BookDetailActivity : AppCompatActivity() {
         // The delete action only makes sense for an already-saved book.
         binding.btnDeleteBook.visibility =
             if (book.id > 0L) android.view.View.VISIBLE else android.view.View.GONE
+        binding.editorTitle.text =
+            if (book.id > 0L && book.title.isNotBlank()) book.title
+            else getString(R.string.editor_new_title)
         binding.editTitle.setText(book.title)
         binding.editAuthor.setText(book.author)
         binding.editPublisher.setText(book.publisher)

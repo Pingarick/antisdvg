@@ -37,6 +37,11 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
 
     private var searchJob: Job? = null
 
+    private val cache = SearchCache()
+
+    /** Newer searches own the screen; older answers must not overwrite them. */
+    private var searchGen = 0
+
     fun onQueryChanged(query: String) {
         _state.update { it.copy(query = query) }
         searchJob?.cancel()
@@ -68,22 +73,49 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
         val query = _state.value.query.trim()
         if (query.isBlank()) return
         val source = _state.value.source
+        val gen = ++searchGen
 
-        _state.update { it.copy(loading = true, error = false, items = emptyList()) }
-        val result = withContext(Dispatchers.IO) {
-            try {
-                Result.success(searchWithRetry(source, query))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Result.failure(e)
+        // A repeated query answers from memory: no waiting on a slow server.
+        cache.get(source, query)?.let { cached ->
+            _state.update {
+                it.copy(loading = false, error = false, slow = false, items = cached.map { book -> Item(book) })
             }
+            return
         }
 
-        result.onSuccess { books ->
-            _state.update { it.copy(loading = false, error = false, items = books.map { Item(book = it) }) }
-        }.onFailure {
-            _state.update { it.copy(loading = false, error = true) }
+        _state.update { it.copy(loading = true, error = false, slow = false, items = emptyList()) }
+        // Flibusta can think for half a minute: after ten seconds say so,
+        // instead of a "Ищу…" that looks stuck.
+        val slowJob = viewModelScope.launch {
+            delay(SLOW_AFTER_MS)
+            if (searchGen == gen && _state.value.loading) {
+                _state.update { it.copy(slow = true) }
+            }
+        }
+        try {
+            val result = withContext(Dispatchers.IO) {
+                try {
+                    Result.success(searchWithRetry(source, query))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Result.failure(e)
+                }
+            }
+
+            // A newer search started while this one was in flight: it owns
+            // the screen now, this answer is stale.
+            if (searchGen != gen) return
+            result.onSuccess { books ->
+                cache.put(source, query, books)
+                _state.update {
+                    it.copy(loading = false, error = false, slow = false, items = books.map { book -> Item(book) })
+                }
+            }.onFailure {
+                _state.update { it.copy(loading = false, error = true, slow = false) }
+            }
+        } finally {
+            slowJob.cancel()
         }
     }
 
@@ -206,6 +238,8 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
         val query: String = "",
         val source: CatalogSource = CatalogSource.WIKISOURCE,
         val loading: Boolean = false,
+        /** The request takes long; the status line should admit it. */
+        val slow: Boolean = false,
         val error: Boolean = false,
         val items: List<Item> = emptyList()
     )
@@ -217,4 +251,9 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
     )
 
     enum class DownloadState { IDLE, DOWNLOADING, DONE, FAILED }
+
+    companion object {
+        /** After this long the catalogue admits the server is slow. */
+        const val SLOW_AFTER_MS = 10_000L
+    }
 }
