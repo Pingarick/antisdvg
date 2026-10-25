@@ -236,7 +236,8 @@ class CatalogViewModel(application: Application) : AndroidViewModel(application)
 
     data class UiState(
         val query: String = "",
-        val source: CatalogSource = CatalogSource.WIKISOURCE,
+        // Flibusta is the only source that works reliably on mobile networks.
+        val source: CatalogSource = CatalogSource.FLIBUSTA,
         val loading: Boolean = false,
         /** The request takes long; the status line should admit it. */
         val slow: Boolean = false,
