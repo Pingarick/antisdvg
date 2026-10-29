@@ -1761,21 +1761,34 @@ class ReaderActivity : AppCompatActivity() {
                 viewModel.noteExcerpt(excerpt)
             }
             viewModel.freezeSession()
-            // Ribbon mode has no pages of its own: there is no range to correct,
-            // and inventing one would let the reward describe pages never laid out.
-            if (excerpt == null || viewModel.state.value.mode != ReaderMode.PAGED) {
-                prepareQuiz(withProgress = true) { count -> showSummary(count) }
-                return@pullExcerpt
-            }
+            val total = viewModel.totalPages()
             val auto = viewModel.summary()
             // Let the reader correct the automatic range before the test is
             // built: the questions and the reward both follow the chosen pages.
-            askRange(auto.fromPage, auto.toPage, viewModel.totalPages()) { from, to ->
-                viewModel.setRange(from, to)
-                pullRangeText(from, to) { text ->
-                    if (text.isNotBlank()) viewModel.noteRangeText(text)
-                    prepareQuiz(withProgress = true) { count -> showSummary(count) }
+            if (excerpt != null && viewModel.state.value.mode == ReaderMode.PAGED) {
+                askRange(auto.fromPage, auto.toPage, total, 1, total) { from, to ->
+                    viewModel.setRange(from, to)
+                    pullRangeText(from, to) { text ->
+                        if (text.isNotBlank()) viewModel.noteRangeText(text)
+                        prepareQuiz(withProgress = true) { count -> showSummary(count) }
+                    }
                 }
+                return@pullExcerpt
+            }
+            // No layout report (ribbon mode, or the page is not ready): the
+            // range is estimated from progress, so it may only be corrected
+            // within what was read — and the test text is sliced from the
+            // same progress span.
+            val (spanFrom, spanTo) = viewModel.sessionSpan()
+            askRange(
+                auto.fromPage.coerceIn(spanFrom, spanTo),
+                auto.toPage.coerceIn(spanFrom, spanTo),
+                total, spanFrom, spanTo
+            ) { from, to ->
+                viewModel.setRange(from, to)
+                val text = viewModel.ribbonRangeText(from, to)
+                if (text.isNotBlank()) viewModel.noteRangeText(text)
+                prepareQuiz(withProgress = true) { count -> showSummary(count) }
             }
         }
     }
@@ -1785,7 +1798,14 @@ class ReaderActivity : AppCompatActivity() {
      * layout may re-count them. The reader confirms or corrects it before the
      * test, and that range is what the test and the minutes use.
      */
-    private fun askRange(from: Int, to: Int, total: Int, onConfirm: (Int, Int) -> Unit) {
+    private fun askRange(
+        from: Int,
+        to: Int,
+        total: Int,
+        minAllowed: Int = 1,
+        maxAllowed: Int = total,
+        onConfirm: (Int, Int) -> Unit
+    ) {
         val view = layoutInflater.inflate(R.layout.dialog_reader_range, null)
         val fromEdit = view.findViewById<EditText>(R.id.range_from)
         val toEdit = view.findViewById<EditText>(R.id.range_to)
@@ -1805,8 +1825,8 @@ class ReaderActivity : AppCompatActivity() {
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             val start = fromEdit.text.toString().toIntOrNull()
             val end = toEdit.text.toString().toIntOrNull()
-            if (start == null || end == null || start < 1 || end > total || start > end) {
-                hint.text = getString(R.string.reader_range_error, total)
+            if (start == null || end == null || start < minAllowed || end > maxAllowed || start > end) {
+                hint.text = getString(R.string.reader_range_error, minAllowed, maxAllowed)
                 return@setOnClickListener
             }
             dialog.dismiss()

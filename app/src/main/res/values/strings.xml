@@ -358,7 +358,7 @@
     <string name="reader_range_from">С страницы</string>
     <string name="reader_range_to">По страницу</string>
     <string name="reader_range_total">Всего в книге: %1$d стр.</string>
-    <string name="reader_range_error">Диапазон: от 1 до %1$d, начало не больше конца.</string>
+    <string name="reader_range_error">Диапазон: от %1$d до %2$d, начало не больше конца.</string>
     <string name="reader_summary_page">Прочитано стр. %1$d за %2$d мин.</string>
     <string name="reader_summary_pages">Прочитано стр. %1$d–%2$d (%3$d стр.) за %4$d мин.</string>
     <string name="reader_summary_ask">В книге %1$d стр. Вопросов в тесте: %2$d — начислим %3$d мин.\n\nЕсли выйти, сессия отложится: тест пройдёшь при следующем открытии книги.</string>

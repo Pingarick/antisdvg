@@ -59,6 +59,27 @@ object ReaderProgress {
     }
 
     /**
+     * Maps a chosen page sub-range onto a slice of the session text: every page
+     * of the span owns its proportional share of the text. Used where pages
+     * are estimates rather than laid-out screens (ribbon mode), so a corrected
+     * range still tests only what was read — never outside the span, never an
+     * empty slice when there is text.
+     */
+    fun sliceSpan(text: String, spanFrom: Int, spanTo: Int, from: Int, to: Int): String {
+        if (text.isEmpty()) return ""
+        val lo = minOf(spanFrom, spanTo).coerceAtLeast(1)
+        val hi = maxOf(spanFrom, spanTo).coerceAtLeast(lo)
+        val start = from.coerceIn(lo, hi)
+        val end = to.coerceIn(start, hi)
+        val pages = (hi - lo + 1).coerceAtLeast(1)
+        val startOffset = ((start - lo).toDouble() / pages * text.length).toInt()
+            .coerceIn(0, text.length)
+        val endOffset = ((end - lo + 1).toDouble() / pages * text.length).toInt()
+            .coerceIn(startOffset + 1, text.length)
+        return text.substring(startOffset, endOffset)
+    }
+
+    /**
      * What a session pays: a fixed reward for every page that was really on screen,
      * plus one minute for every minute read.
      *

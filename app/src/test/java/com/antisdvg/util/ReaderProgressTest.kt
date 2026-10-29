@@ -2,6 +2,7 @@ package com.antisdvg.util
 
 import com.antisdvg.data.model.BookFormat
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ReaderProgressTest {
@@ -102,5 +103,45 @@ class ReaderProgressTest {
         assertEquals(3, ReaderProgress.passThreshold(5, 0))
         assertEquals(4, ReaderProgress.passThreshold(5, 1))
         assertEquals(4, ReaderProgress.passThreshold(5, 2))
+    }
+
+    @Test
+    fun sliceSpan_fullSpanReturnsWholeText() {
+        val text = "abcdefghij"
+
+        assertEquals(text, ReaderProgress.sliceSpan(text, 1, 10, 1, 10))
+    }
+
+    @Test
+    fun sliceSpan_subRangeTakesItsShareInOrder() {
+        val text = "aaaaBBBBcccc"
+
+        val first = ReaderProgress.sliceSpan(text, 1, 3, 1, 1)
+        val middle = ReaderProgress.sliceSpan(text, 1, 3, 2, 2)
+        val last = ReaderProgress.sliceSpan(text, 1, 3, 3, 3)
+
+        assertEquals("aaaa", first)
+        assertEquals("BBBB", middle)
+        assertEquals("cccc", last)
+        assertTrue((first + middle + last).length <= text.length)
+    }
+
+    @Test
+    fun sliceSpan_clampsOutsideChoicesToTheSpan() {
+        val text = "abcdefghij"
+
+        assertEquals(text, ReaderProgress.sliceSpan(text, 3, 5, 1, 99))
+    }
+
+    @Test
+    fun sliceSpan_emptyTextStaysEmpty() {
+        assertEquals("", ReaderProgress.sliceSpan("", 1, 5, 1, 5))
+    }
+
+    @Test
+    fun sliceSpan_singlePageSpanReturnsWholeText() {
+        val text = "abcdefghij"
+
+        assertEquals(text, ReaderProgress.sliceSpan(text, 4, 4, 4, 4))
     }
 }

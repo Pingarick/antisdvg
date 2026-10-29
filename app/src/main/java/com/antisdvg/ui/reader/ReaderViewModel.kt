@@ -336,6 +336,28 @@ class ReaderViewModel(
         return base.copy(fromPage = from, toPage = to, pagesRead = (to - from + 1).coerceAtLeast(1))
     }
 
+    /**
+     * Progress-derived page span of this session: what the reader covered
+     * between opening the book and now. Used where the layout reports no
+     * pages of its own (ribbon mode), so the range dialog still opens with
+     * an honest guess — and only within what was read.
+     */
+    fun sessionSpan(): Pair<Int, Int> {
+        val total = totalPages().coerceAtLeast(1)
+        val from = ReaderProgress.pageAt(sessionStartProgress, total)
+        val to = ReaderProgress.pageAt(_state.value.progress, total)
+        return from to maxOf(to, from)
+    }
+
+    /**
+     * Text of the pages the reader picked in a mode without laid-out pages:
+     * the chosen sub-range mapped onto the session's progress text.
+     */
+    fun ribbonRangeText(fromPage: Int, toPage: Int): String {
+        val (spanFrom, spanTo) = sessionSpan()
+        return ReaderProgress.sliceSpan(fallbackExcerpt(), spanFrom, spanTo, fromPage, toPage)
+    }
+
     private fun computeSummary(): SessionSummary {
         // A postponed session is described by what it kept, not by where the
         // reader happens to be now.
