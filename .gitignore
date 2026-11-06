@@ -36,7 +36,7 @@ awal/
 *.webp
 # Исключения: скриншоты для README (нужны в публичном репозитории)
 !home_screen.png
-!scr_retelling.png
+!scr_reader.png
 
 # --- Верхнеуровневые временные файлы ---
 /*.xml
